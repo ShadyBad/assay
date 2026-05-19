@@ -1,0 +1,9 @@
+.DS_Store
+.backup-*/
+*.swp
+*.swo
+.idea/
+.vscode/
+node_modules/
+__pycache__/
+*.pyc

@@ -20,9 +20,13 @@ A 14-step ship pipeline for [Claude Code](https://claude.ai/code). Takes a fuzzy
 | `/weekly` | Sunday review. |
 | `/cross-learn` | Promote patterns learned in one project namespace into system-level rules. |
 
-**11 skills** (orchestrated by the commands above)
+**12 skills** (orchestrated by the commands above)
 
-`spec-builder`, `judge-panel`, `done-gate`, `commit-protocol`, `project-memory`, `session-recall`, `operator-model`, `mcp-router`, `notion-bridge`, `skill-curator`, `postmortem`.
+`spec-builder`, `judge-panel`, `done-gate`, `commit-protocol`, `project-memory`, `session-recall`, `operator-model`, `mcp-router`, `notion-bridge`, `skill-curator`, `postmortem`, `plugin-packager`.
+
+**3 hooks** (proposal surfacing — see [hooks/README.md](./hooks/README.md))
+
+`proposal-watcher.sh` (SessionStart banner), `composed-statusline.sh` (📋 N indicator), `proposal-count.sh` (helper). Surfaces pending skill-curator proposals on session start and in the statusline.
 
 ## Design
 

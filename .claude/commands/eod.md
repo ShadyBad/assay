@@ -1,3 +1,9 @@
+---
+name: eod
+description: End-of-day wrap. Captures what shipped, what slipped, what was learned, and tomorrow's first action. Writes through the memory skills (project-memory, operator-model, session-recall) and gates every write on explicit Brandon approval — never silently mutates state. Use at the end of a work day, when Brandon says "wrap up the day" or "/eod", or to close out a /ship-heavy session with captured lessons.
+argument-hint: "[--quick] [--project=<ns>] [--note=<freeform>] [--no-operator-update]"
+---
+
 # /eod — End-of-Day Wrap
 
 Closes the day. Captures what shipped, what slipped, what got learned, and the first action for tomorrow. Writes through the existing memory skills — never bypasses them.

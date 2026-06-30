@@ -1,3 +1,9 @@
+---
+name: morning
+description: Daily kickoff. Reads memory, calendar, lessons, and open proposals to surface what matters today as a 5-bullet brief plus a single "first action." Read-only — never writes lessons, pushes to Notion, or mutates state (/eod does that). Use at the start of a work day, when Brandon says "good morning", "/morning", or "what's on today".
+argument-hint: "[--project=<ns>] [--quick] [--no-cal]"
+---
+
 # /morning — Daily Kickoff
 
 Surfaces what matters today. Reads memory + calendar + lessons + open proposals. Outputs a 5-bullet brief and a single "first action."

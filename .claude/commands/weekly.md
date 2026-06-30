@@ -1,3 +1,9 @@
+---
+name: weekly
+description: Sunday review — the slow loop. Detects cross-project patterns across the week's lessons, runs the full skill-curator audit, and offers per-section Notion push for team-relevant retros. Reads everything /eod wrote across the week and writes one consolidated retro file. Never auto-pushes. Use once a week (default Sunday), when Brandon says "/weekly" or "run the weekly review".
+argument-hint: "[--range=<7d|14d|30d>] [--project=<ns>] [--no-curator] [--no-notion] [--dry-run]"
+---
+
 # /weekly — Sunday Review
 
 The slow loop. Runs once a week (default Sunday). Detects cross-project patterns across the week's lessons, runs the full skill-curator audit, and offers per-section Notion push for team-relevant retros.

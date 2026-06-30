@@ -1,30 +1,31 @@
 # Demo assets
 
-This directory holds the recorded demo of `/ship` shown in the top-level README.
+`claude-ship.gif` (shown in the top-level README) is a recorded walkthrough of
+the plugin validating its own structure — the real test + lint suite running
+green. It is non-interactive on purpose: it demonstrates the repo's rigor
+without staging a fake session.
 
-## Recording the GIF
+## Recording
 
-The demo is captured with [vhs](https://github.com/charmbracelet/vhs), which
-renders a terminal session from a declarative tape file.
+Captured with [vhs](https://github.com/charmbracelet/vhs), which renders a
+terminal session from a declarative tape file.
 
 ```bash
 # install vhs (macOS): brew install vhs
-vhs demo/ship.tape          # writes demo/ship.gif
+vhs demo/demo.tape          # writes demo/claude-ship.gif
 ```
 
-`ship.tape` is a starting point. Because `/ship` is interactive (it pauses for
-plan approval, commit approval, and push), the tape's `Sleep` durations and the
-`ship` / `y` responses need tuning to your machine's latency before the capture
-looks clean. Record against a throwaway task so the pipeline has something real
-to run.
+Run it from the repo root so `uv run pytest` resolves the project. Tune the
+`Sleep` durations to your machine's `uv` startup latency before the final
+capture.
 
-## Alternative: asciinema
+## A live /ship recording
 
-For an embeddable, copy-pasteable cast instead of a GIF:
+To add a GIF of the interactive `/ship` pipeline itself, record a real session
+with [asciinema](https://asciinema.org/) (which captures interactive input
+cleanly) and convert with [agg](https://github.com/asciinema/agg):
 
 ```bash
-asciinema rec demo/ship.cast
-# run /ship inside the recording, then exit
+asciinema rec demo/ship.cast   # run /ship inside, then exit
+agg demo/ship.cast demo/ship.gif
 ```
-
-Once `ship.gif` exists, embed it in the top-level README under the Demo section.

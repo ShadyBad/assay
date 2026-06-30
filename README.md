@@ -42,7 +42,11 @@ Risk tier is the central lever: it locks the model each subagent and judge runs 
 
 ## Demo
 
-A recorded `/ship` run is the fastest way to see the pipeline. See [demo/](./demo/README.md) for the `vhs` tape and recording instructions (the GIF is generated locally, since `/ship` is interactive).
+`claude-ship` validates its own structure — the walkthrough below runs the real test + lint suite green. Generate it locally with `vhs demo/demo.tape` (see [demo/](./demo/README.md)).
+
+<!-- Uncomment once demo/claude-ship.gif is recorded (run: vhs demo/demo.tape): -->
+<!-- ![claude-ship self-validation walkthrough](demo/claude-ship.gif) -->
+
 
 ## What you get
 

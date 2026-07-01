@@ -1,7 +1,7 @@
 ---
 name: ship
 description: Master orchestrator. Runs the full 14-step pipeline from task parse through commit and learn. Coordinates all custom skills (spec-builder, judge-panel, project-memory, session-recall, operator-model, skill-curator, notion-bridge, mcp-router, done-gate, commit-protocol) and key plugins (superpowers ecosystem, commit-commands, github). Use whenever Brandon wants to make a meaningful change to a project — code, docs, configuration, or strategy artifacts. Two invocation forms: /ship "<task description>" for direct execution, or /ship <spec-id> to consume an approved spec produced by /spec. Supports flags for risk classification, judge control, MCP control, check skipping, and commit behavior. Saves state on interrupt for /ship resume.
-argument-hint: <spec-id> | "<task description>" [--judges] [--no-judges] [--risk=<tier>] [--mcps=<list>] [--skip-tests] [--skip-lint] [--skip-types] [--force] [--commit-message=<msg>] [--amend] [--no-push] [--auto-push] [--dry-run]
+argument-hint: <spec-id> | "<task description>" [--judges] [--no-judges] [--risk=<tier>] [--mcps=<list>] [--skip-tests] [--skip-lint] [--skip-types] [--force] [--commit-message=<msg>] [--amend] [--no-push] [--auto-push] [--deploy] [--no-deploy] [--dry-run]
 ---
 
 # /ship — Master Orchestrator
@@ -38,6 +38,8 @@ Parse the invocation arguments before starting the pipeline. The first argument 
 | `--amend` | Amend last commit instead of new commit. |
 | `--no-push` | Skip the push question after commit. |
 | `--auto-push` | Push immediately after commit without asking. |
+| `--deploy` | Force Step 11.5 DEPLOY → CANARY after commit, even if no auto-trigger matches. Still gated by explicit deploy approval (governs git ≠ prod). |
+| `--no-deploy` | Hard-disable Step 11.5 DEPLOY → CANARY even when a deploy trigger matches. |
 | `--dry-run` | Run pipeline through Step 10 DONE GATE, surface diff + judge verdict, then halt and save state. `/ship resume` picks up at Step 11 COMMIT. Inspection sandbox — no files committed. |
 | `resume` | Resume the most recent interrupted /ship session (special positional arg). |
 
@@ -278,6 +280,22 @@ If commit fails (pre-commit hook rejection): surface, offer auto-fix, do not byp
 
 If the spec file has been edited since the snapshot (mtime diverges), surface to Brandon: "Spec `<spec-id>` was modified during the ship run. Apply status update anyway? (yes/no/diff)." Default no — abort the status flip but keep the commit.
 
+### Step 11.5: DEPLOY → CANARY (optional — deploy tasks only)
+
+Closes the loop to production. Skipped by default: most repos in this tree are frozen (margin_invest decommissioned; aie_roadmap/shadybad non-deploying). Fires ONLY when opted in — any of: `--deploy` set, task primary verb ∈ {deploy, release, land}, or the project defines `.claude/deploy.md`. No trigger → skip silently to Step 12.
+
+**Irreversible-action gate (always).** Deploy is CRITICAL tier by definition (Risk Tiers, CLAUDE.md). It NEVER runs without explicit Brandon approval, regardless of `--auto-push` or `--force` — those govern git, not production. Surface the target (env, project, commit SHA) and wait for explicit "deploy" / "go". `--no-deploy` hard-disables the stage even when a trigger matches.
+
+1. **Preflight.** Confirm Step 11 committed AND pushed — deploy off an unpushed commit is refused. Resolve the deploy target from the project's `.claude/deploy.md` (contract + template: `templates/deploy.md` in the claude-ship repo; required keys `env`, `command`, `health_url`, `expected_status`). No `.claude/deploy.md` → surface "no deploy target — skipping", proceed to Step 12. Do NOT infer a target from directory shape — absence of the file means opt-out.
+2. **Deploy.** Run `command` from the contract. `mcp:vercel` → Vercel MCP `deploy_to_vercel`; any other value → run verbatim as a shell command. Capture deployment URL + build logs. Build failure → HALT, surface logs, save state, route to postmortem. Do NOT proceed to canary.
+3. **Canary.** Invoke **ecc:canary-watch** against `health_url`. Poll `canary_window` (default 5 min): HTTP status vs `expected_status`, plus — when `metrics` is `posthog`/`sentry` and that MCP is wired — error-rate delta and p95 latency.
+4. **Verdict.**
+   - `healthy` — record deploy SHA + URL in state, proceed to Step 12.
+   - `degraded` / `error-spike` — surface metrics, offer (a) rollback (per the contract's `rollback` key; `manual` surfaces steps without auto-acting), (b) hold and investigate, (c) accept. Rollback is itself an irreversible action — explicit approval.
+5. On `--dry-run`: this stage never fires (no commit exists).
+
+Output: deploy record `{sha, url, canary_verdict, metrics}` written to `state.json.deploy`.
+
 ### Step 12: LEARN
 
 Skipped on `--dry-run` halts (no commit to learn from). Runs on the eventual `/ship resume` commit instead.
@@ -361,7 +379,7 @@ Hand-offs are append-only: phase_summaries entries never overwrite prior ones; i
 
 Step 12 (LEARN) only fires after a successful commit. Without a counterpart, every aborted, blocked, or halted run produces zero learning — and failures carry the highest-signal lessons.
 
-On any non-success exit from Steps 3, 7, 8, 9, 10, or 11 (Brandon abort, subagent timeout chosen abort, judge `block`, revise cycles exceeded, done-gate failure, pre-commit hook rejection with no auto-fix), and on any `stop`/`abort` input mid-pipeline:
+On any non-success exit from Steps 3, 7, 8, 9, 10, 11, or 11.5 (Brandon abort, subagent timeout chosen abort, judge `block`, revise cycles exceeded, done-gate failure, pre-commit hook rejection with no auto-fix, deploy build failure or canary rollback), and on any `stop`/`abort` input mid-pipeline:
 
 1. Save state per "Saving State on Interrupt" above.
 2. Invoke the **postmortem** skill in `auto` mode with `failure_step`, `attempted_action`, `gate_verdict`, and `partial_changeset` pulled from the saved state.
@@ -401,6 +419,7 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 
 - NEVER skip judge-panel for HIGH/CRITICAL risk, regardless of flags.
 - NEVER auto-push without `--auto-push` flag.
+- NEVER deploy (Step 11.5) without explicit Brandon approval. `--auto-push` and `--force` govern git, NOT production — neither bypasses the deploy gate. Rollback is likewise explicit-approval only.
 - NEVER push to protected branches without per-push confirmation.
 - NEVER bypass done-gate Check 8 (Brandon approval). Even `--force` does not bypass approval.
 - NEVER write to operator-model.md without Brandon's explicit acknowledgment of the change.
@@ -449,5 +468,7 @@ Enhanced by (in order of impact):
 /ship "<task>" --force                  # Emergency hotfix. All gates bypassed except approval.
 /ship "<task>" --commit-message="..."   # Use exact commit message.
 /ship "<task>" --auto-push              # Push immediately after commit.
+/ship "<task>" --deploy                 # After commit, run deploy → canary (Step 11.5). Explicit deploy approval still required.
+/ship "<task>" --no-deploy              # Suppress deploy → canary even for a deploy-verb task.
 /ship "<task>" --dry-run                # Run through done-gate, show diff + verdict, halt before commit. Resume to commit.
 /ship resume                            # Resume last interrupted session (or finish a dry-run).

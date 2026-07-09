@@ -39,7 +39,7 @@ MCPs:
 
 ### design
 
-Loaded for: UI/UX work, design system updates, mockups.
+Loaded for: UI/UX work, design system updates, mockups, marketing/landing pages, web motion, WebGL/3D.
 
 MCPs:
 1. `Excalidraw` — quick diagrams.
@@ -122,7 +122,7 @@ These are not "loaded" in the heavy sense; they are available because their cost
 2. Look for explicit category signals:
    - Code-related verbs: write, refactor, debug, test, deploy → coding or ops.
    - Research verbs: research, find papers, look up, what is the market → research.
-   - Design verbs: design, mock up, style, layout → design.
+   - Design verbs: design, mock up, style, layout, animate, scroll animation, landing page, pricing page, hero, WebGL, three.js, GSAP, motion → design.
    - Marketing verbs: campaign, SEO, copy, conversion → GTM.
    - Money verbs: model, forecast, P&L, ROI, valuation → finance.
 3. Look for explicit service mentions (override category mapping). If Brandon mentions a specific service by name, load that MCP regardless of category.

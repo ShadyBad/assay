@@ -7,6 +7,16 @@ description: Multi-judge code review system invoked before any commit by /ship c
 
 This skill is the core review mechanism invoked by `/ship` before any commit. It scales judge invocation to risk tier, parallelizes calls where possible, and delegates to plugin agents (`pr-review-toolkit`, `ecc`'s reviewer agents) to minimize token cost.
 
+## Relationship to other review-shaped skills
+
+This is the sole review entry point for anything ship-bound — any `/ship` invocation, or an explicit "review this before I commit" request. Don't let another review skill fire independently on the same diff; that risks two conflicting verdicts on one change. Most of the apparent overlap here is narrower-scoped than it looks on the surface, not truly redundant:
+
+- **Native `code-review` skill** — genuinely overlapping for ad hoc, non-ship review ("review this file" outside a commit flow). Fine standalone there; prefer judge-panel once a diff is ship-bound.
+- **`ecc:security-review`** — a narrower auth/secrets/API-endpoint checklist, not a full diff review. Legitimately different lens from the Tier 2 security judge here; can run alongside, not instead of.
+- **`ecc:security-scan`** — scans the Claude Code *configuration* (`.claude/`, CLAUDE.md, hooks, MCP servers) via AgentShield, not application code. Different subject entirely.
+- **`ecc:quality-gate`** — a single-file formatter check driven by a PostToolUse hook, not a code review. Different subject entirely.
+- **`pr-review-toolkit:code-reviewer`** — already a delegate this skill calls internally, not an independent competitor.
+
 ## Invocation Contract
 
 The skill receives:
@@ -72,6 +82,45 @@ Tier 3 judges are invoked only for CRITICAL changes affecting product strategy, 
 27. **Thiel** — "What important truth do few people agree with you on?" Contrarian-but-correct test.
 28. **Graham** — what would users actually use, do things that don't scale, ship the thing.
 29. **Ive** — would Brandon be proud to ship this? Detail-craft level.
+
+## Per-Judge Model Assignment
+
+Each judge runs on a model matched to the reasoning depth its concern demands, not to the change's risk tier. This collapses panel cost without dropping a single judge: a naming nit on Haiku costs a fraction of the same judge on Opus, while correctness and systemic judgment still get the strongest model. The dispatching step passes each judge its assigned model.
+
+| Model | Judges | Why |
+|-------|--------|-----|
+| **Opus** (`claude-opus-4-8`) | 1 Senior Staff, 2 Security, 12 Concurrency, 13 Error Handler, 17 Karpathy, 18 Threat Modeler, 20 Regulatory, 21 Failure Mode, all Tier 3 (22–29) | Correctness, security, systemic risk, and strategic judgment — failure here is expensive or irreversible. |
+| **Sonnet** (`claude-sonnet-4-6`) | 3 Performance, 4 Test Architect, 5 API Designer, 6 Data Engineer, 7 DevOps, 10 Backend, 11 Database, 19 Cost Accountant | Substantive review where Sonnet's signal is close to Opus at lower cost. |
+| **Haiku** (`claude-haiku-4-5`) | 8 Accessibility, 9 Frontend, 14 Documentation, 15 Naming Critic, 16 Simplicity | Nit-class / pattern-matching concerns; cheap model is sufficient. |
+
+Override precedence: a judge's assigned model here wins over the tier default model from `/ship` Step 4. When a judge delegates to a `pr-review-toolkit` / `ecc` agent (see Delegation Priority below), pass the same assigned model to that agent dispatch. Hard floor: judges named in the Hard Constraints (Security, Karpathy on HIGH/CRITICAL) always run at their Opus assignment — never downgraded.
+
+## Concern-Detection Pre-Pass (diff-aware gating)
+
+Before invoking the tier's judge set, run ONE cheap Haiku pass over the diff to detect which concern categories are actually present. This avoids firing judges whose domain the diff never touches — same rigor where it's relevant, no over-coverage.
+
+The pre-pass returns a tag set drawn from:
+`auth` · `secrets` · `user-input` · `concurrency` · `async` · `query` · `schema` · `migration` · `ui` · `accessibility` · `external-api` · `error-handling` · `naming` · `docs` · `perf-hot-path` · `financial` · `pii`
+
+Map tags → judges (a judge fires only if at least one of its tags is present AND it is in the tier template):
+
+| Tag(s) | Activates judge(s) |
+|--------|--------------------|
+| auth, secrets, user-input, pii | 2 Security, 18 Threat Modeler |
+| concurrency, async | 12 Concurrency, 10 Backend |
+| query, schema, migration | 6 Data Engineer, 11 Database |
+| ui, accessibility | 8 Accessibility, 9 Frontend |
+| external-api | 19 Cost Accountant, 7 DevOps |
+| error-handling | 13 Error Handler |
+| naming, docs | 14 Documentation, 15 Naming Critic |
+| perf-hot-path | 3 Performance |
+| financial, pii | 20 Regulatory Reviewer |
+
+Always-on regardless of tags (the structural reviewers): 1 Senior Staff, 4 Test Architect, 16 Simplicity.
+
+**Gating floor (never bypassed):** for HIGH/CRITICAL, 2 Security, 17 Karpathy, and 21 Failure Mode Analyst fire regardless of detected tags — the pre-pass can ADD judges but can NEVER drop these. This preserves the Hard Constraints below. The pre-pass output is the *intersection* with the tier template, then *union* with this floor.
+
+If the pre-pass itself fails or times out, fall back to the full tier template (fail toward more coverage, not less).
 
 ## Risk Tier → Judge Invocation Map
 

@@ -1,12 +1,23 @@
 ---
 name: ship
 description: Master orchestrator. Runs the full 14-step pipeline from task parse through commit and learn. Coordinates all custom skills (spec-builder, judge-panel, project-memory, session-recall, operator-model, skill-curator, notion-bridge, mcp-router, done-gate, commit-protocol) and key plugins (superpowers ecosystem, commit-commands, github). Use whenever Brandon wants to make a meaningful change to a project — code, docs, configuration, or strategy artifacts. Two invocation forms: /ship "<task description>" for direct execution, or /ship <spec-id> to consume an approved spec produced by /spec. Supports flags for risk classification, judge control, MCP control, check skipping, and commit behavior. Saves state on interrupt for /ship resume.
-argument-hint: <spec-id> | "<task description>" [--judges] [--no-judges] [--risk=<tier>] [--mcps=<list>] [--skip-tests] [--skip-lint] [--skip-types] [--force] [--commit-message=<msg>] [--amend] [--no-push] [--auto-push] [--dry-run]
+argument-hint: <spec-id> | "<task description>" [--judges] [--no-judges] [--risk=<tier>] [--mcps=<list>] [--skip-tests] [--skip-lint] [--skip-types] [--force] [--commit-message=<msg>] [--amend] [--no-push] [--auto-push] [--deploy] [--no-deploy] [--dry-run]
 ---
 
 # /ship — Master Orchestrator
 
 Runs the 14-step pipeline. Every step delegates to a skill. This file is the conductor, not the orchestra.
+
+## Cache Discipline (operating principle, all steps)
+
+The sequential steps can ride a warm prompt cache (Anthropic cache TTL ~5 min) only if the context prefix stays stable. Claude Code auto-caches the system + tool prefix; /ship cannot set cache breakpoints directly, so the lever is **stop mutating context mid-run**:
+
+- Load CONTEXT (Step 2) exactly once into the context bundle. Do not re-invoke context-mutating skills (project-memory, session-recall, operator-model) later in the pipeline.
+- Read each memory file once; work from the in-context bundle thereafter, never re-read the same file.
+- Keep skill-load order fixed across a run — don't reorder or interleave loads between steps.
+- Prefer the Artifact Reference Protocol (Step 7) over re-injecting large bodies, which churns the suffix and forces cache misses on every subsequent step.
+
+This is guidance, not a hard mechanism — its ROI is lower than model tiering (Step 4) or diff-aware judge gating (Step 8). Stated here so a context-churning pattern is greppable when observed.
 
 ## Flag Parsing (Step 0)
 
@@ -27,6 +38,8 @@ Parse the invocation arguments before starting the pipeline. The first argument 
 | `--amend` | Amend last commit instead of new commit. |
 | `--no-push` | Skip the push question after commit. |
 | `--auto-push` | Push immediately after commit without asking. |
+| `--deploy` | Force Step 11.5 DEPLOY → CANARY after commit, even if no auto-trigger matches. Still gated by explicit deploy approval (governs git ≠ prod). |
+| `--no-deploy` | Hard-disable Step 11.5 DEPLOY → CANARY even when a deploy trigger matches. |
 | `--dry-run` | Run pipeline through Step 10 DONE GATE, surface diff + judge verdict, then halt and save state. `/ship resume` picks up at Step 11 COMMIT. Inspection sandbox — no files committed. |
 | `resume` | Resume the most recent interrupted /ship session (special positional arg). |
 
@@ -60,13 +73,15 @@ Output a structured task spec used by later steps. If task description is too va
 
 ### Step 2: CONTEXT LOAD
 
-Invoke these skills in parallel where possible:
+Context load is **conditional**, not paid on every run. The triple-memory load (lessons + recall + prefs) is a fixed token tax whose payoff lands on maybe 1 ship in 5; gate it so cheap/isolated work skips it.
 
-1. **project-memory** — load `lessons.md` for the detected project. Surface 3-5 most relevant lessons to current task.
-2. **session-recall** — search past sessions for matching keywords. Use 3-tier fallback (episodic-memory MCP → project-memory grep → ripgrep).
-3. **operator-model** — load Brandon's preferences. Apply Things Brandon Hates filter to suppress patterns he has rejected.
+1. **operator-model** — ALWAYS load. Cheap, high-value, applies to every change. Apply the Things Brandon Hates filter to suppress patterns he has rejected.
+2. **project-memory** — load `lessons.md` and surface 3-5 relevant lessons ONLY when tier ≥ MEDIUM, OR the task names a subsystem with known prior lessons. TRIVIAL/LOW skip.
+3. **session-recall** — search past sessions (3-tier fallback: episodic-memory MCP → project-memory grep → ripgrep) ONLY when the task signals prior art: keywords like "again", "like we did", "continue", "same as", or an explicit ticket/PR/spec reference. Otherwise skip.
 
-Output: a context bundle (lessons + recall hits + applicable Brandon prefs) used by PLAN and EXECUTE steps.
+Note Step 1 RISK CLASSIFY (Step 4) runs before this gate can fully evaluate tier; in practice the lead does a quick tier pre-estimate from the parsed task to decide the gate, and reconciles after Step 4. When in doubt at the MEDIUM boundary, load.
+
+Invoke whatever is gated-in **in parallel**. Output: a context bundle (always prefs; lessons + recall hits when loaded) used by PLAN and EXECUTE steps.
 
 ### Step 3: PLAN
 
@@ -123,9 +138,19 @@ TRIVIAL/LOW always execute inline (single agent); no subagent budget applies. Bu
 | HIGH | 3–5 | 20 | 100 |
 | CRITICAL | 5–8 | 25 | 200 (logged per call when exceeded) |
 
-The lead maintains a `tool_call_tally` field in `state.json`, updated on each subagent dispatch and return. Subagent counts are hard; total tool-call ceiling is soft (a single overrun is allowed if a subagent is mid-finalization). If a subagent approaches its per-agent cap, it must finalize and return an artifact ref (Step 7) rather than continue. If the soft total ceiling is hit, halt EXECUTE and surface to Brandon: "(a) raise budget, (b) take results so far, (c) abort and save state."
+The lead tracks **subagent dispatch count** (a real, countable quantity) against the tier's max-subagents ceiling — this is the hard limit. The per-subagent tool-call ceiling is an **advisory budget stated in each Delegation Brief** (Step 5 `boundaries` field); the subagent self-enforces by finalizing and returning an artifact ref (Step 7) when it approaches its cap, rather than continuing. The lead does NOT attempt to self-count its own tool calls — models do not reliably tally their own actions, so there is no `tool_call_tally`; true token-accounting enforcement is deferred to a future Workflow-based rewrite. If the subagent-count ceiling is hit, halt EXECUTE and surface to Brandon: "(a) raise budget, (b) take results so far, (c) abort and save state."
 
-Output: risk tier + effort budget locked for the rest of the pipeline.
+**Model by Tier.** Risk tier selects the *model* each subagent and judge runs on, not just agent count. This is the highest cost-per-quality lever: a cheap-model reviewer costs a fraction of a frontier-model one at near-equal signal for low-stakes work, while high-stakes reasoning still gets the strongest model.
+
+| Tier | Default model | Rationale |
+|------|---------------|-----------|
+| TRIVIAL / LOW | Haiku (`claude-haiku-4-5`) | Mechanical changes; cheap model is sufficient. |
+| MEDIUM | Sonnet (`claude-sonnet-4-6`) | Feature work; balanced cost/quality. |
+| HIGH / CRITICAL | Opus (`claude-opus-4-8`) | Schema/auth/financial/irreversible; pay for depth. |
+
+The lead dispatches every subagent (Steps 5, 7) with the tier's default model. Judge-panel (Step 8) overrides per-judge — correctness/security/systemic judges run Opus regardless of tier, nit-class judges run Haiku (see judge-panel SKILL.md roster `model` column). Brandon can override the tier model with the existing `--risk=` flag (which relocks the tier and its model).
+
+Output: risk tier + effort budget + tier model locked for the rest of the pipeline.
 
 ### Step 5: DISPATCH
 
@@ -255,6 +280,22 @@ If commit fails (pre-commit hook rejection): surface, offer auto-fix, do not byp
 
 If the spec file has been edited since the snapshot (mtime diverges), surface to Brandon: "Spec `<spec-id>` was modified during the ship run. Apply status update anyway? (yes/no/diff)." Default no — abort the status flip but keep the commit.
 
+### Step 11.5: DEPLOY → CANARY (optional — deploy tasks only)
+
+Closes the loop to production. Skipped by default: most repos in this tree are frozen (margin_invest decommissioned; aie_roadmap/shadybad non-deploying). Fires ONLY when opted in — any of: `--deploy` set, task primary verb ∈ {deploy, release, land}, or the project defines `.claude/deploy.md`. No trigger → skip silently to Step 12.
+
+**Irreversible-action gate (always).** Deploy is CRITICAL tier by definition (Risk Tiers, CLAUDE.md). It NEVER runs without explicit Brandon approval, regardless of `--auto-push` or `--force` — those govern git, not production. Surface the target (env, project, commit SHA) and wait for explicit "deploy" / "go". `--no-deploy` hard-disables the stage even when a trigger matches.
+
+1. **Preflight.** Confirm Step 11 committed AND pushed — deploy off an unpushed commit is refused. Resolve the deploy target from the project's `.claude/deploy.md` (contract + template: `templates/deploy.md` in the claude-ship repo; required keys `env`, `command`, `health_url`, `expected_status`). No `.claude/deploy.md` → surface "no deploy target — skipping", proceed to Step 12. Do NOT infer a target from directory shape — absence of the file means opt-out.
+2. **Deploy.** Run `command` from the contract. `mcp:vercel` → Vercel MCP `deploy_to_vercel`; any other value → run verbatim as a shell command. Capture deployment URL + build logs. Build failure → HALT, surface logs, save state, route to postmortem. Do NOT proceed to canary.
+3. **Canary.** Invoke **ecc:canary-watch** against `health_url`. Poll `canary_window` (default 5 min): HTTP status vs `expected_status`, plus — when `metrics` is `posthog`/`sentry` and that MCP is wired — error-rate delta and p95 latency.
+4. **Verdict.**
+   - `healthy` — record deploy SHA + URL in state, proceed to Step 12.
+   - `degraded` / `error-spike` — surface metrics, offer (a) rollback (per the contract's `rollback` key; `manual` surfaces steps without auto-acting), (b) hold and investigate, (c) accept. Rollback is itself an irreversible action — explicit approval.
+5. On `--dry-run`: this stage never fires (no commit exists).
+
+Output: deploy record `{sha, url, canary_verdict, metrics}` written to `state.json.deploy`.
+
 ### Step 12: LEARN
 
 Skipped on `--dry-run` halts (no commit to learn from). Runs on the eventual `/ship resume` commit instead.
@@ -267,22 +308,15 @@ After successful commit:
 
 These updates are append-only. Never overwrite existing lessons or operator-model entries.
 
-### Step 13: CURATE CHECK
+### Step 13: CURATE CHECK (post-ship, async — off the critical path)
 
-Check `$HOME/.claude/memory/global/last-curator-run.txt`:
+Curation is skill hygiene, not part of shipping a change. It NEVER blocks commit, the report, or Brandon. The per-run `propose` mode is removed (it taxed every ship for a rare payoff).
 
-- If file missing OR timestamp is 7+ days old: invoke **skill-curator** in `full` mode as a background pass.
-- Otherwise: invoke **skill-curator** in `propose` mode only (checks if this run produced a generalizable pattern that should become a new skill).
+After the report is delivered: check `$HOME/.claude/memory/global/last-curator-run.txt`. If missing OR 7+ days old, fire **skill-curator** in `full` mode as a detached background pass and update the timestamp. If skill-curator proposes anything, note the count in the report's `Curator:` line if the pass finished in time, otherwise leave it for the next session. If under 7 days, do nothing — skip entirely.
 
-If skill-curator proposes anything, surface count to Brandon in final report: "Curator proposed N items in _proposed/. Review at your convenience."
+### Step 14: REPORT (NOTION is now on-demand, not a pipeline prompt)
 
-### Step 14: NOTION ROUTE + REPORT
-
-Invoke **notion-bridge** to inspect artifacts generated during the run:
-
-- For each artifact matching push categories (ADRs, status, retros, customer-facing docs): prompt Brandon "Push <artifact> to Notion? (yes/no/different target)".
-- For each artifact in stay-local categories: skip silently.
-- For ambiguous: ask Brandon.
+NOTION ROUTE is removed from the pipeline. /ship no longer prompts "push to Notion?" per artifact at the end of every run — that interrupted every ship for a rarely-taken action. Instead, the report lists eligible artifacts and their local paths; Brandon pushes what he wants with an on-demand `/share <artifact>` (routes through notion-bridge). Default is local-only.
 
 Generate final /ship report:
 SHIP COMPLETE ✓
@@ -298,8 +332,8 @@ Commit: <SHA> <message>
 Push: <pushed | local-only>
 Lessons captured: <count>
 Operator model updates: <count>
-Curator proposals: <count>
-Notion artifacts: <pushed count>/<eligible count>
+Curator: <async pass running | N proposals | skipped (<7d)>
+Notion-eligible artifacts: <count> (local; push with /share <artifact>)
 Next: <suggested next action if applicable>
 
 ## State Management
@@ -309,7 +343,7 @@ Next: <suggested next action if applicable>
 If pipeline is interrupted (Brandon types "stop", subagent times out and Brandon chooses abort, judge-panel returns block, etc.), save:
 
 `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/`
-  - `state.json` — current step, completed steps, flag values, classifications. For `--dry-run` halts: also includes `dry_run: true` and `next_step: 11`. Carries `artifacts: [...]` (Step 7 Artifact Reference Protocol), `phase_summaries: {<phase>: <summary>}` (Long-Horizon Hand-off, below), `tool_call_tally: {<subagent-slot>: <count>}` (Step 4 Effort Budget), `handoff_pending: bool` (Hand-off flag), and `subagent_failures: [{slug, reason, timestamp}]`.
+  - `state.json` — current step, completed steps, flag values, classifications. For `--dry-run` halts: also includes `dry_run: true` and `next_step: 11`. Carries `artifacts: [...]` (Step 7 Artifact Reference Protocol), `phase_summaries: {<phase>: <summary>}` (Long-Horizon Hand-off, below), `subagent_dispatch_count: <int>` (Step 4 Effort Budget — real countable hard limit, replaces the former self-counted `tool_call_tally`), `tier_model: <haiku|sonnet|opus>` (Step 4 Model by Tier), `handoff_pending: bool` (Hand-off flag), and `subagent_failures: [{slug, reason, timestamp}]`.
   - `task-spec.md` — parsed task from Step 1.
   - `plan.md` — plan from Step 3.
   - `changeset.md` — partial changes if applicable.
@@ -345,7 +379,7 @@ Hand-offs are append-only: phase_summaries entries never overwrite prior ones; i
 
 Step 12 (LEARN) only fires after a successful commit. Without a counterpart, every aborted, blocked, or halted run produces zero learning — and failures carry the highest-signal lessons.
 
-On any non-success exit from Steps 3, 7, 8, 9, 10, or 11 (Brandon abort, subagent timeout chosen abort, judge `block`, revise cycles exceeded, done-gate failure, pre-commit hook rejection with no auto-fix), and on any `stop`/`abort` input mid-pipeline:
+On any non-success exit from Steps 3, 7, 8, 9, 10, 11, or 11.5 (Brandon abort, subagent timeout chosen abort, judge `block`, revise cycles exceeded, done-gate failure, pre-commit hook rejection with no auto-fix, deploy build failure or canary rollback), and on any `stop`/`abort` input mid-pipeline:
 
 1. Save state per "Saving State on Interrupt" above.
 2. Invoke the **postmortem** skill in `auto` mode with `failure_step`, `attempted_action`, `gate_verdict`, and `partial_changeset` pulled from the saved state.
@@ -376,8 +410,7 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 | 11 COMMIT | Hook rejection | Surface. Offer auto-fix. Never bypass. |
 | 12 LEARN | Memory write fails | Retry once. Then log error. Do not block. |
 | 13 CURATE | Curator errors | Log. Skip. Do not block. |
-| 14 NOTION | MCP disconnected | Skip Notion push. Note in report. |
-| 14 REPORT | Report write fails | Print report to stdout. Log error. Do not block. |
+| 14 REPORT | Report write fails | Print report to stdout. Log error. Do not block. (Notion is on-demand `/share`, not in-pipeline — no failure mode here.) |
 | State (Hand-off) | phase_summaries write fails | Retry once. On second failure, surface to Brandon — hand-off cannot proceed safely without persisted summaries. |
 | State (Hand-off) | lead_handoff.md missing on resume | Refuse resume with handoff_pending=true. Tell Brandon to inspect session dir or restart. |
 | State (Artifacts) | artifact write fails | Subagent retries write; on second failure, returns inline body with `inline_fallback: true` marker. Lead logs the fallback. |
@@ -386,6 +419,7 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 
 - NEVER skip judge-panel for HIGH/CRITICAL risk, regardless of flags.
 - NEVER auto-push without `--auto-push` flag.
+- NEVER deploy (Step 11.5) without explicit Brandon approval. `--auto-push` and `--force` govern git, NOT production — neither bypasses the deploy gate. Rollback is likewise explicit-approval only.
 - NEVER push to protected branches without per-push confirmation.
 - NEVER bypass done-gate Check 8 (Brandon approval). Even `--force` does not bypass approval.
 - NEVER write to operator-model.md without Brandon's explicit acknowledgment of the change.
@@ -434,5 +468,7 @@ Enhanced by (in order of impact):
 /ship "<task>" --force                  # Emergency hotfix. All gates bypassed except approval.
 /ship "<task>" --commit-message="..."   # Use exact commit message.
 /ship "<task>" --auto-push              # Push immediately after commit.
+/ship "<task>" --deploy                 # After commit, run deploy → canary (Step 11.5). Explicit deploy approval still required.
+/ship "<task>" --no-deploy              # Suppress deploy → canary even for a deploy-verb task.
 /ship "<task>" --dry-run                # Run through done-gate, show diff + verdict, halt before commit. Resume to commit.
 /ship resume                            # Resume last interrupted session (or finish a dry-run).

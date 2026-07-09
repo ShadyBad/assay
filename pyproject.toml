@@ -1,0 +1,38 @@
+[project]
+name = "claude-ship"
+version = "0.1.1"
+description = "A 14-step ship pipeline orchestrator for Claude Code — fuzzy goal → crisp spec → risk-classified plan → judge-reviewed diff → engineer-in-the-loop commit → captured lessons, packaged as an installable plugin."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "Brandon Shay" }]
+keywords = ["claude-code", "plugin", "orchestrator", "agents", "code-review"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/shadybad/claude-ship"
+Repository = "https://github.com/shadybad/claude-ship"
+
+# claude-ship ships markdown commands + skills + shell hooks — there is no
+# importable Python package. The Python toolchain exists only to validate the
+# plugin's own structure (see tests/). Treat the project as virtual: deps only,
+# nothing to build or install.
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

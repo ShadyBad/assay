@@ -7,6 +7,16 @@ description: Multi-judge code review system invoked before any commit by /ship c
 
 This skill is the core review mechanism invoked by `/ship` before any commit. It scales judge invocation to risk tier, parallelizes calls where possible, and delegates to plugin agents (`pr-review-toolkit`, `ecc`'s reviewer agents) to minimize token cost.
 
+## Relationship to other review-shaped skills
+
+This is the sole review entry point for anything ship-bound — any `/ship` invocation, or an explicit "review this before I commit" request. Don't let another review skill fire independently on the same diff; that risks two conflicting verdicts on one change. Most of the apparent overlap here is narrower-scoped than it looks on the surface, not truly redundant:
+
+- **Native `code-review` skill** — genuinely overlapping for ad hoc, non-ship review ("review this file" outside a commit flow). Fine standalone there; prefer judge-panel once a diff is ship-bound.
+- **`ecc:security-review`** — a narrower auth/secrets/API-endpoint checklist, not a full diff review. Legitimately different lens from the Tier 2 security judge here; can run alongside, not instead of.
+- **`ecc:security-scan`** — scans the Claude Code *configuration* (`.claude/`, CLAUDE.md, hooks, MCP servers) via AgentShield, not application code. Different subject entirely.
+- **`ecc:quality-gate`** — a single-file formatter check driven by a PostToolUse hook, not a code review. Different subject entirely.
+- **`pr-review-toolkit:code-reviewer`** — already a delegate this skill calls internally, not an independent competitor.
+
 ## Invocation Contract
 
 The skill receives:

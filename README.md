@@ -1,25 +1,25 @@
-# claude-ship
+# Assay
 
-[![CI](https://github.com/shadybad/claude-ship/actions/workflows/ci.yml/badge.svg)](https://github.com/shadybad/claude-ship/actions/workflows/ci.yml)
+[![CI](https://github.com/shadybad/assay/actions/workflows/ci.yml/badge.svg)](https://github.com/shadybad/assay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](./.python-version)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](https://claude.ai/code)
 
-A 14-step ship pipeline for [Claude Code](https://claude.ai/code). Takes a fuzzy goal → crisp spec → risk-classified plan → reviewed diff → engineer-in-the-loop commit → captured lessons. Packaged as an installable Claude Code plugin.
+Assay — a 14-step delivery pipeline that assays AI-generated code before it merges. Spec → risk-classified plan → 29-judge panel → done-gate → engineer-in-the-loop commit → captured lessons.
 
 > Status: v0.1.1 — extracted from a personal config and hardened with a structure test suite + CI. Works as-is. Names and project namespaces are pre-set for the original author; see [CONFIG.md](./CONFIG.md) to personalize.
 
 ## Why
 
-Agentic coding fails in predictable ways: shipping the wrong thing well, skipping review on "small" changes, burning tokens routing every subagent result through one context, and learning nothing from failures. `claude-ship` is the guardrail layer — a single `/ship` command that scopes the work, scales review to risk, keeps a human in the loop on every commit, and feeds lessons back into itself. It's also a working reference for several patterns from Anthropic's [multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system): per-tier effort budgets, structured delegation briefs, an artifact-reference protocol, and long-horizon hand-off.
+Agentic coding fails in predictable ways: shipping the wrong thing well, skipping review on "small" changes, burning tokens routing every subagent result through one context, and learning nothing from failures. Assay is the guardrail layer — a single `/assay` command that scopes the work, scales review to risk, keeps a human in the loop on every commit, and feeds lessons back into itself. It's also a working reference for several patterns from Anthropic's [multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system): per-tier effort budgets, structured delegation briefs, an artifact-reference protocol, and long-horizon hand-off.
 
 ## Architecture
 
-`/ship` is the conductor. Every step delegates to a skill; the skills compose into one pipeline with two feedback loops (judge → revise, and commit → learn).
+`/assay` is the conductor. Every step delegates to a skill; the skills compose into one pipeline with two feedback loops (judge → revise, and commit → learn).
 
 ```mermaid
 flowchart TD
-  IN["/ship — task or spec-id"] --> PARSE[PARSE]
+  IN["/assay — task or spec-id"] --> PARSE[PARSE]
   PARSE --> CTX["CONTEXT LOAD<br/>operator-model · project-memory · session-recall"]
   CTX --> PLAN[PLAN]
   PLAN --> RISK{"RISK CLASSIFY<br/>TRIVIAL → CRITICAL"}
@@ -42,23 +42,23 @@ Risk tier is the central lever: it locks the model each subagent and judge runs 
 
 ## Demo
 
-`claude-ship` validates its own structure — the walkthrough below runs the real test + lint suite green. Generate it locally with `vhs demo/demo.tape` (see [demo/](./demo/README.md)).
+Assay validates its own structure — the walkthrough below runs the real test + lint suite green. Generate it locally with `vhs demo/demo.tape` (see [demo/](./demo/README.md)).
 
-<!-- Uncomment once demo/claude-ship.gif is recorded (run: vhs demo/demo.tape): -->
-<!-- ![claude-ship self-validation walkthrough](demo/claude-ship.gif) -->
+<!-- Uncomment once demo/assay.gif is recorded (run: vhs demo/demo.tape): -->
+<!-- ![Assay self-validation walkthrough](demo/assay.gif) -->
 
 
 ## What you get
 
-**7 commands** (`/ship` has three forms)
+**7 commands** (`/assay` has three forms)
 
 | Command | What it does |
 |---------|--------------|
-| `/ship "<task>"` | 14-step orchestrator: parse → context → plan → risk → dispatch → MCP route → execute → judges → revise → done-gate → commit → learn → curate → report. |
-| `/ship <spec-id>` | Consume an approved spec from `/spec`. |
-| `/ship resume` | Resume the last interrupted /ship session. |
-| `/spec` | Turn a fuzzy goal into a `/ship`-consumable spec (draft → approved → shipped). |
-| `/postmortem` | Failure-side learning loop. Auto-fires on `/ship` halt. |
+| `/assay "<task>"` | 14-step orchestrator: parse → context → plan → risk → dispatch → MCP route → execute → judges → revise → done-gate → commit → learn → curate → report. |
+| `/assay <spec-id>` | Consume an approved spec from `/spec`. |
+| `/assay resume` | Resume the last interrupted /assay session. |
+| `/spec` | Turn a fuzzy goal into a `/assay`-consumable spec (draft → approved → shipped). |
+| `/postmortem` | Failure-side learning loop. Auto-fires on `/assay` halt. |
 | `/morning` | Daily kickoff brief (read-only). |
 | `/eod` | End-of-day wrap (gated writes). |
 | `/weekly` | Sunday review + cross-project pattern detection. |
@@ -87,27 +87,27 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for what each test enforces.
 ### Option A — local plugin (immediate)
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git ~/.claude/plugins/local/claude-ship
+git clone https://github.com/shadybad/assay.git ~/.claude/plugins/local/assay
 ```
 
 Or symlink from anywhere:
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git ~/repos/claude-ship
+git clone https://github.com/shadybad/assay.git ~/repos/assay
 mkdir -p ~/.claude/plugins/local
-ln -s ~/repos/claude-ship ~/.claude/plugins/local/claude-ship
+ln -s ~/repos/assay ~/.claude/plugins/local/assay
 ```
 
-Restart Claude Code. `/ship` should now be available.
+Restart Claude Code. `/assay` should now be available.
 
 ### Option B — drop directly into `~/.claude/`
 
 If you don't want the plugin layer:
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git /tmp/claude-ship
-cp -i /tmp/claude-ship/.claude/commands/*.md ~/.claude/commands/
-cp -ri /tmp/claude-ship/.claude/skills/* ~/.claude/skills/
+git clone https://github.com/shadybad/assay.git /tmp/assay
+cp -i /tmp/assay/.claude/commands/*.md ~/.claude/commands/
+cp -ri /tmp/assay/.claude/skills/* ~/.claude/skills/
 ```
 
 See [INSTALL.md](./INSTALL.md) for the full options matrix.
@@ -124,7 +124,7 @@ See [CONFIG.md](./CONFIG.md) for what gets rewritten and why.
 
 ## Recommended companions
 
-`/ship` degrades gracefully when these aren't installed, but works best with:
+`/assay` degrades gracefully when these aren't installed, but works best with:
 
 - `superpowers` marketplace plugins (`brainstorming`, `writing-plans`, `subagent-driven-development`, `episodic-memory`, `private-journal-mcp`)
 - `claude-plugins-official` (`plugin-dev`, `commit-commands`, `pr-review-toolkit`, `hookify`, `pyright-lsp`, `notion`, `github`)

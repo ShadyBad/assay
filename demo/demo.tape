@@ -1,10 +1,10 @@
-# vhs tape — claude-ship self-validation walkthrough.
-# Render from the repo root:  vhs demo/demo.tape   ->  demo/claude-ship.gif
+# vhs tape — assay self-validation walkthrough.
+# Render from the repo root:  vhs demo/demo.tape   ->  demo/assay.gif
 #
 # This is non-interactive on purpose: it runs the real test + lint suite so the
 # GIF shows the plugin validating its own structure, not a staged session.
 
-Output demo/claude-ship.gif
+Output demo/assay.gif
 
 Set FontSize 18
 Set Width 1280
@@ -13,7 +13,7 @@ Set Theme "Dracula"
 Set Padding 30
 Set TypingSpeed 35ms
 
-Type "# claude-ship — a Claude Code plugin that validates its own structure"
+Type "# assay — a Claude Code plugin that validates its own structure"
 Enter
 Sleep 1500ms
 

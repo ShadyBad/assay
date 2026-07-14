@@ -1,6 +1,6 @@
 # Configuration
 
-`/ship` was extracted from a personal config. Several hard-coded strings reflect the original author's setup. This file lists what to change and why.
+`/assay` was extracted from a personal config. Several hard-coded strings reflect the original author's setup. This file lists what to change and why.
 
 ## Things hard-coded to the original author
 
@@ -33,7 +33,7 @@ The script makes a `.backup-<timestamp>/` copy before rewriting. Diff if unsure.
 If you prefer to do it by hand:
 
 ```bash
-cd ~/repos/claude-ship/.claude
+cd ~/repos/assay/.claude
 grep -rl "Brandon" .         # see what files contain the string
 grep -rl "auto-co" .
 grep -rl "margin-invest" .
@@ -43,8 +43,8 @@ Then use your editor's project-wide replace.
 
 ## What you probably DON'T want to rewrite
 
-- **The risk tier names** (TRIVIAL/LOW/MEDIUM/HIGH/CRITICAL) — load-bearing across `/ship`, `judge-panel`, `done-gate`.
-- **The pipeline step numbers and names** — `/ship` references them by step (e.g. "Step 7 EXECUTE"). Renaming requires touching every cross-reference.
+- **The risk tier names** (TRIVIAL/LOW/MEDIUM/HIGH/CRITICAL) — load-bearing across `/assay`, `judge-panel`, `done-gate`.
+- **The pipeline step numbers and names** — `/assay` references them by step (e.g. "Step 7 EXECUTE"). Renaming requires touching every cross-reference.
 - **Skill IDs in YAML frontmatter** (`name: spec-builder`, etc.) — these are the addresses other skills use to link.
 - **The `Pinned Skills` list** in `skill-curator/SKILL.md` — protects the foundation from accidental archive proposals. Add your own to the list rather than replacing.
 

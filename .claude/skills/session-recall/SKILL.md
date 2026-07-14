@@ -104,7 +104,7 @@ Brandon can invoke directly with a slash command (defined elsewhere in `/recall`
 
 ## Session Lifecycle
 
-Every Claude Code session that uses `/ship` saves a transcript:
+Every Claude Code session that uses `/assay` saves a transcript:
 
 1. Session directory: `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<short-id>/`
 2. `transcript.md` — task description, plan, executed steps, outcomes, lessons logged.

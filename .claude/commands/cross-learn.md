@@ -33,7 +33,7 @@ For each project in scope:
 
 Output: flat list of `(project, timestamp, task_summary, lesson, tags)` tuples.
 
-If total entries across all projects < 10: surface "Not enough lessons to federate (have <N>, need ≥10). Run `/cross-learn` again after more `/ship` runs accumulate lessons." Halt cleanly.
+If total entries across all projects < 10: surface "Not enough lessons to federate (have <N>, need ≥10). Run `/cross-learn` again after more `/assay` runs accumulate lessons." Halt cleanly.
 
 ### Step 2: CLUSTER
 
@@ -120,7 +120,7 @@ Next: review _proposed/ at your convenience; rerun /cross-learn after ~10 more l
 ## When to Run
 
 - Manually: when any project's `lessons.md` crosses 20+ entries.
-- Auto-trigger candidates (not wired yet): end of `/ship` Step 13 if `skill-curator` is also due AND total lessons across projects ≥ 30 since last `/cross-learn` run.
+- Auto-trigger candidates (not wired yet): end of `/assay` Step 13 if `skill-curator` is also due AND total lessons across projects ≥ 30 since last `/cross-learn` run.
 - Brandon asks: "what patterns are repeating across projects" / "any system-level lessons hiding" / "federate the lessons".
 
 ## Failure Modes

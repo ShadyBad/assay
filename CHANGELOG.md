@@ -35,11 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-05-18
 
 ### Added
-- Initial extraction of the `/ship` 14-step orchestrator and supporting skills
+- Initial extraction of the `/assay` 14-step orchestrator and supporting skills
   from a personal Claude Code configuration into an installable plugin.
-- 7 commands (`/ship`, `/spec`, `/postmortem`, `/morning`, `/eod`, `/weekly`,
+- 7 commands (`/assay`, `/spec`, `/postmortem`, `/morning`, `/eod`, `/weekly`,
   `/cross-learn`), 12 skills, and 3 proposal-surfacing hooks.
 
-[Unreleased]: https://github.com/shadybad/claude-ship/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/shadybad/claude-ship/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/shadybad/claude-ship/releases/tag/v0.1.0
+[Unreleased]: https://github.com/shadybad/assay/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/shadybad/assay/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/shadybad/assay/releases/tag/v0.1.0

@@ -1,16 +1,16 @@
 ---
 name: spec-builder
-description: Transforms a fuzzy goal into a crisp, /ship-consumable spec. Wires superpowers:brainstorming (divergent exploration), ecc:prp-prd (interrogation), and operator-model (Brandon's constraint bias) into a single interview that produces a 1-page spec at $HOME/.claude/memory/projects/<ns>/specs/<spec-id>.md with status draft|approved|shipped. Use when Brandon types /spec, when a /ship task arrives without measurable success criteria, when Brandon says "I want to build X but I'm not sure what", or when an idea has been kicking around long enough to deserve a written hypothesis. Coordinates with project-memory (loads relevant prior lessons), session-recall (surfaces prior similar specs), and judge-panel (risk-tier classification for downstream /ship). Pinned. Never silently overwrites an existing spec — collisions get a numeric suffix.
+description: Transforms a fuzzy goal into a crisp, /assay-consumable spec. Wires superpowers:brainstorming (divergent exploration), ecc:prp-prd (interrogation), and operator-model (Brandon's constraint bias) into a single interview that produces a 1-page spec at $HOME/.claude/memory/projects/<ns>/specs/<spec-id>.md with status draft|approved|shipped. Use when Brandon types /spec, when a /assay task arrives without measurable success criteria, when Brandon says "I want to build X but I'm not sure what", or when an idea has been kicking around long enough to deserve a written hypothesis. Coordinates with project-memory (loads relevant prior lessons), session-recall (surfaces prior similar specs), and judge-panel (risk-tier classification for downstream /assay). Pinned. Never silently overwrites an existing spec — collisions get a numeric suffix.
 ---
 
 # spec-builder
 
-The missing step between fuzzy goal and `/ship`. Most bad ships come from shipping the wrong thing well. This skill forces the scoping moment.
+The missing step between fuzzy goal and `/assay`. Most bad ships come from shipping the wrong thing well. This skill forces the scoping moment.
 
 ## When to invoke
 
 - Brandon types `/spec "<fuzzy goal>"` directly.
-- Brandon types `/ship "<task>"` and the task description has no measurable success criteria (no numbers, no observable outcome, no test plan possible).
+- Brandon types `/assay "<task>"` and the task description has no measurable success criteria (no numbers, no observable outcome, no test plan possible).
 - Brandon says variations of: "I want to build X", "I should probably tackle Y", "what should I do about Z", "I have an idea for...".
 - An auto-co or margin-invest task has been mentioned 3+ times across sessions without a spec being written.
 
@@ -83,7 +83,7 @@ The interrogation must surface answers to:
 4. **Non-goals** — Three things this is explicitly NOT doing. Forces scope discipline.
 5. **Constraints** — What is fixed? Pull from operator-model (no premature optimization, etc.) and project context (margin_invest frozen, aie_roadmap is tracking only, etc.).
 6. **Risks / Ways this could be wrong** — Adversarial. Minimum 3 bullets. Mandatory per margin-invest-backtest convention in project CLAUDE.md.
-7. **Plan sketch** — High-level steps (3-7 bullets). Not a full plan — that's `/ship`'s job in Step 3 PLAN. Just enough to estimate scope.
+7. **Plan sketch** — High-level steps (3-7 bullets). Not a full plan — that's `/assay`'s job in Step 3 PLAN. Just enough to estimate scope.
 
 If `ecc:prp-prd` plugin is unavailable: ask the 7 questions directly, one at a time.
 
@@ -108,13 +108,13 @@ Path: $HOME/.claude/memory/projects/<ns>/specs/<spec-id>.md
 Status: draft
 
 Options:
-  approve — flip status to approved, ready for /ship
+  approve — flip status to approved, ready for /assay
   draft   — save as draft, return to it later
   revise  — re-open interrogation on a specific section
   abort   — discard, do not save
 ```
 
-Default response: `draft`. Brandon must explicitly type `approve` to flip status. This is the gate that protects `/ship` from running unapproved specs.
+Default response: `draft`. Brandon must explicitly type `approve` to flip status. This is the gate that protects `/assay` from running unapproved specs.
 
 ### Step 8: WRITE
 
@@ -135,7 +135,7 @@ Index columns: spec-id, title, risk-tier, status, created, shipped-at.
 Spec <spec-id> saved with status=<status>.
 
 <if approved:>
-Next: /ship <spec-id>
+Next: /assay <spec-id>
 
 <if draft:>
 Next: /spec approve <spec-id>   # when ready to ship
@@ -231,17 +231,17 @@ Flip status from any to `draft`. Re-enter interrogation, focused on the sections
 
 If status was `shipped`: warn — "This spec already shipped. Revising creates a new draft on the same spec-id. Ship history will be preserved in the frontmatter."
 
-## Coordination with /ship
+## Coordination with /assay
 
-`/ship` Step 1 PARSE checks if the first arg matches a spec-id pattern (`<slug>-\d{4}-\d{2}-\d{2}(-\d+)?`). If yes:
+`/assay` Step 1 PARSE checks if the first arg matches a spec-id pattern (`<slug>-\d{4}-\d{2}-\d{2}(-\d+)?`). If yes:
 
 1. Resolve in current namespace's specs/ directory.
 2. If found, load the spec.
 3. If status is `draft`: refuse. "Run `/spec approve <spec-id>` first."
 4. If status is `shipped`: warn. Allow with `--force`. Otherwise abort.
-5. If status is `approved`: snapshot the spec into the session state directory. Lock it for the duration of this /ship run.
+5. If status is `approved`: snapshot the spec into the session state directory. Lock it for the duration of this /assay run.
 
-`/ship` Step 11 COMMIT, on successful commit: update spec frontmatter `status: shipped`, `shipped-at: <date>`, `shipped-commit: <SHA>`. Update `_index.md` row.
+`/assay` Step 11 COMMIT, on successful commit: update spec frontmatter `status: shipped`, `shipped-at: <date>`, `shipped-commit: <SHA>`. Update `_index.md` row.
 
 This is what makes a spec a contract, not just a doc.
 
@@ -262,9 +262,9 @@ This is what makes a spec a contract, not just a doc.
 - NEVER write a spec with `status: approved` without Brandon explicitly typing `approve`.
 - NEVER overwrite a `shipped` spec. Revising creates a new draft on the same id; ship history is preserved.
 - NEVER skip the Risks section. Inherited from margin-invest-backtest convention — every spec must end with an adversarial section.
-- NEVER infer success criteria. If Brandon refuses to give a measurable outcome, abort the spec with "Without measurable success criteria, /ship cannot verify done. Walk away or come back with a number."
+- NEVER infer success criteria. If Brandon refuses to give a measurable outcome, abort the spec with "Without measurable success criteria, /assay cannot verify done. Walk away or come back with a number."
 - ALWAYS load operator-model before interrogation. Brandon's constraints bias the questions.
-- ALWAYS append to `_index.md` so `/spec list` and `/ship`'s spec-id resolution stay cheap.
+- ALWAYS append to `_index.md` so `/spec list` and `/assay`'s spec-id resolution stay cheap.
 
 ## Plugin dependencies
 
@@ -274,4 +274,4 @@ This is what makes a spec a contract, not just a doc.
 - `project-memory` skill — Step 3 lesson loading.
 - `session-recall` skill — Step 3 prior-spec search.
 
-All other skills (judge-panel, done-gate, commit-protocol, notion-bridge) interact with this skill only through `/ship` once the spec is approved.
+All other skills (judge-panel, done-gate, commit-protocol, notion-bridge) interact with this skill only through `/assay` once the spec is approved.

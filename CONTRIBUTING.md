@@ -1,4 +1,4 @@
-# Contributing to claude-ship
+# Contributing to Assay
 
 Thanks for taking a look. This repo packages a Claude Code plugin — markdown
 commands, skills, and shell hooks — plus a Python test harness that validates
@@ -10,8 +10,8 @@ The plugin itself has no runtime dependencies. The Python toolchain exists only
 to run the structure tests. You need [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git
-cd claude-ship
+git clone https://github.com/shadybad/assay.git
+cd assay
 uv sync
 ```
 
@@ -50,5 +50,5 @@ inconsistent before CI does.
 
 ## Dogfooding
 
-This repo is developed with its own pipeline — changes ship through `/ship`,
+This repo is developed with its own pipeline — changes ship through `/assay`,
 which runs the same lint/test/judge gates described above before any commit.

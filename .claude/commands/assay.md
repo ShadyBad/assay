@@ -1,16 +1,16 @@
 ---
-name: ship
-description: Master orchestrator. Runs the full 14-step pipeline from task parse through commit and learn. Coordinates all custom skills (spec-builder, judge-panel, project-memory, session-recall, operator-model, skill-curator, notion-bridge, mcp-router, done-gate, commit-protocol) and key plugins (superpowers ecosystem, commit-commands, github). Use whenever Brandon wants to make a meaningful change to a project — code, docs, configuration, or strategy artifacts. Two invocation forms: /ship "<task description>" for direct execution, or /ship <spec-id> to consume an approved spec produced by /spec. Supports flags for risk classification, judge control, MCP control, check skipping, and commit behavior. Saves state on interrupt for /ship resume.
+name: assay
+description: Master orchestrator. Runs the full 14-step pipeline from task parse through commit and learn. Coordinates all custom skills (spec-builder, judge-panel, project-memory, session-recall, operator-model, skill-curator, notion-bridge, mcp-router, done-gate, commit-protocol) and key plugins (superpowers ecosystem, commit-commands, github). Use whenever Brandon wants to make a meaningful change to a project — code, docs, configuration, or strategy artifacts. Two invocation forms: /assay "<task description>" for direct execution, or /assay <spec-id> to consume an approved spec produced by /spec. Supports flags for risk classification, judge control, MCP control, check skipping, and commit behavior. Saves state on interrupt for /assay resume.
 argument-hint: <spec-id> | "<task description>" [--judges] [--no-judges] [--risk=<tier>] [--mcps=<list>] [--skip-tests] [--skip-lint] [--skip-types] [--force] [--commit-message=<msg>] [--amend] [--no-push] [--auto-push] [--deploy] [--no-deploy] [--dry-run]
 ---
 
-# /ship — Master Orchestrator
+# /assay — Master Orchestrator
 
 Runs the 14-step pipeline. Every step delegates to a skill. This file is the conductor, not the orchestra.
 
 ## Cache Discipline (operating principle, all steps)
 
-The sequential steps can ride a warm prompt cache (Anthropic cache TTL ~5 min) only if the context prefix stays stable. Claude Code auto-caches the system + tool prefix; /ship cannot set cache breakpoints directly, so the lever is **stop mutating context mid-run**:
+The sequential steps can ride a warm prompt cache (Anthropic cache TTL ~5 min) only if the context prefix stays stable. Claude Code auto-caches the system + tool prefix; /assay cannot set cache breakpoints directly, so the lever is **stop mutating context mid-run**:
 
 - Load CONTEXT (Step 2) exactly once into the context bundle. Do not re-invoke context-mutating skills (project-memory, session-recall, operator-model) later in the pipeline.
 - Read each memory file once; work from the in-context bundle thereafter, never re-read the same file.
@@ -40,8 +40,8 @@ Parse the invocation arguments before starting the pipeline. The first argument 
 | `--auto-push` | Push immediately after commit without asking. |
 | `--deploy` | Force Step 11.5 DEPLOY → CANARY after commit, even if no auto-trigger matches. Still gated by explicit deploy approval (governs git ≠ prod). |
 | `--no-deploy` | Hard-disable Step 11.5 DEPLOY → CANARY even when a deploy trigger matches. |
-| `--dry-run` | Run pipeline through Step 10 DONE GATE, surface diff + judge verdict, then halt and save state. `/ship resume` picks up at Step 11 COMMIT. Inspection sandbox — no files committed. |
-| `resume` | Resume the most recent interrupted /ship session (special positional arg). |
+| `--dry-run` | Run pipeline through Step 10 DONE GATE, surface diff + judge verdict, then halt and save state. `/assay resume` picks up at Step 11 COMMIT. Inspection sandbox — no files committed. |
+| `resume` | Resume the most recent interrupted /assay session (special positional arg). |
 
 If `--force` and `--no-judges` are both set and risk tier is HIGH/CRITICAL, refuse: "HIGH/CRITICAL changes cannot bypass judge-panel. Drop --no-judges or accept lower risk classification."
 
@@ -58,7 +58,7 @@ If `--force` and `--no-judges` are both set and risk tier is HIGH/CRITICAL, refu
    - `draft` — refuse: "Spec `<spec-id>` is still draft. Run `/spec approve <spec-id>` first."
    - `shipped` — warn: "Spec `<spec-id>` already shipped on `<shipped-at>` as commit `<shipped-commit>`. Re-ship with `--force` or write a new spec."
    - `approved` — proceed.
-5. Snapshot the spec into the session state directory (`$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/spec-snapshot.md`). Lock for the duration of this /ship run.
+5. Snapshot the spec into the session state directory (`$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/spec-snapshot.md`). Lock for the duration of this /assay run.
 6. Use the spec's `title` as task description, `risk-tier` as the locked risk tier (skip Step 4 RISK CLASSIFY unless `--risk=` overrides), and Success criteria as inputs to done-gate Check 1.
 
 If the first argument is not a spec-id pattern, fall through to task-description parsing below.
@@ -128,7 +128,7 @@ Classification signals:
 
 If `--risk=<tier>` flag is set, override. Show the override to Brandon and confirm before continuing.
 
-**Effort Budget by Tier.** Risk tier locks a ceiling on subagent count and per-subagent tool calls. Pattern adapted from the Anthropic multi-agent research system: scale agent effort to query complexity, embed budgets in the prompt to prevent overinvestment in simple work. Ceilings are calibrated for /ship's code-orchestrator task shape, not research-product fan-out.
+**Effort Budget by Tier.** Risk tier locks a ceiling on subagent count and per-subagent tool calls. Pattern adapted from the Anthropic multi-agent research system: scale agent effort to query complexity, embed budgets in the prompt to prevent overinvestment in simple work. Ceilings are calibrated for /assay's code-orchestrator task shape, not research-product fan-out.
 
 TRIVIAL/LOW always execute inline (single agent); no subagent budget applies. Budget table covers MEDIUM+.
 
@@ -260,7 +260,7 @@ If `--dry-run` flag is set: halt pipeline before committing. Surface to Brandon:
 - Judge verdict from Step 8.
 - Done-gate check results from Step 10.
 
-Save state to `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/` with `state.json` field `dry_run: true` and `next_step: 11`. Skip Steps 12-14. Tell Brandon: "Dry-run complete. Inspect changes, then `/ship resume` to commit, or modify files and re-run."
+Save state to `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/` with `state.json` field `dry_run: true` and `next_step: 11`. Skip Steps 12-14. Tell Brandon: "Dry-run complete. Inspect changes, then `/assay resume` to commit, or modify files and re-run."
 
 Otherwise, invoke **commit-protocol** for the 5-step engineer-in-the-loop commit flow.
 
@@ -272,7 +272,7 @@ Otherwise, invoke **commit-protocol** for the 5-step engineer-in-the-loop commit
 
 If commit fails (pre-commit hook rejection): surface, offer auto-fix, do not bypass.
 
-**Spec status flip (only when this /ship was invoked with a spec-id).** On commit success, if `state.json` has a `spec-snapshot` reference:
+**Spec status flip (only when this /assay was invoked with a spec-id).** On commit success, if `state.json` has a `spec-snapshot` reference:
 1. Re-open the spec at `$HOME/.claude/memory/projects/<ns>/specs/<spec-id>.md`.
 2. Update frontmatter: `status: shipped`, `shipped-at: <YYYY-MM-DD>`, `shipped-commit: <full SHA>`.
 3. Update the matching row in `$HOME/.claude/memory/projects/<ns>/specs/_index.md`.
@@ -286,7 +286,7 @@ Closes the loop to production. Skipped by default: most repos in this tree are f
 
 **Irreversible-action gate (always).** Deploy is CRITICAL tier by definition (Risk Tiers, CLAUDE.md). It NEVER runs without explicit Brandon approval, regardless of `--auto-push` or `--force` — those govern git, not production. Surface the target (env, project, commit SHA) and wait for explicit "deploy" / "go". `--no-deploy` hard-disables the stage even when a trigger matches.
 
-1. **Preflight.** Confirm Step 11 committed AND pushed — deploy off an unpushed commit is refused. Resolve the deploy target from the project's `.claude/deploy.md` (contract + template: `templates/deploy.md` in the claude-ship repo; required keys `env`, `command`, `health_url`, `expected_status`). No `.claude/deploy.md` → surface "no deploy target — skipping", proceed to Step 12. Do NOT infer a target from directory shape — absence of the file means opt-out.
+1. **Preflight.** Confirm Step 11 committed AND pushed — deploy off an unpushed commit is refused. Resolve the deploy target from the project's `.claude/deploy.md` (contract + template: `templates/deploy.md` in the assay repo; required keys `env`, `command`, `health_url`, `expected_status`). No `.claude/deploy.md` → surface "no deploy target — skipping", proceed to Step 12. Do NOT infer a target from directory shape — absence of the file means opt-out.
 2. **Deploy.** Run `command` from the contract. `mcp:vercel` → Vercel MCP `deploy_to_vercel`; any other value → run verbatim as a shell command. Capture deployment URL + build logs. Build failure → HALT, surface logs, save state, route to postmortem. Do NOT proceed to canary.
 3. **Canary.** Invoke **ecc:canary-watch** against `health_url`. Poll `canary_window` (default 5 min): HTTP status vs `expected_status`, plus — when `metrics` is `posthog`/`sentry` and that MCP is wired — error-rate delta and p95 latency.
 4. **Verdict.**
@@ -298,7 +298,7 @@ Output: deploy record `{sha, url, canary_verdict, metrics}` written to `state.js
 
 ### Step 12: LEARN
 
-Skipped on `--dry-run` halts (no commit to learn from). Runs on the eventual `/ship resume` commit instead.
+Skipped on `--dry-run` halts (no commit to learn from). Runs on the eventual `/assay resume` commit instead.
 
 After successful commit:
 
@@ -316,10 +316,10 @@ After the report is delivered: check `$HOME/.claude/memory/global/last-curator-r
 
 ### Step 14: REPORT (NOTION is now on-demand, not a pipeline prompt)
 
-NOTION ROUTE is removed from the pipeline. /ship no longer prompts "push to Notion?" per artifact at the end of every run — that interrupted every ship for a rarely-taken action. Instead, the report lists eligible artifacts and their local paths; Brandon pushes what he wants with an on-demand `/share <artifact>` (routes through notion-bridge). Default is local-only.
+NOTION ROUTE is removed from the pipeline. /assay no longer prompts "push to Notion?" per artifact at the end of every run — that interrupted every ship for a rarely-taken action. Instead, the report lists eligible artifacts and their local paths; Brandon pushes what he wants with an on-demand `/share <artifact>` (routes through notion-bridge). Default is local-only.
 
-Generate final /ship report:
-SHIP COMPLETE ✓
+Generate final /assay report:
+ASSAY COMPLETE ✓
 Task: <task description>
 Project: <project>
 Risk tier: <tier>
@@ -353,7 +353,7 @@ If pipeline is interrupted (Brandon types "stop", subagent times out and Brandon
 
 ### Resuming
 
-`/ship resume` (or `/ship resume <session-id>` for specific older session):
+`/assay resume` (or `/assay resume <session-id>` for specific older session):
 - Loads most recent session state.
 - Shows Brandon the summary: "Resuming from Step <N>. Last action: <description>. Continue? (yes / restart / abort)."
 - On yes, picks up at the next step.
@@ -361,7 +361,7 @@ If pipeline is interrupted (Brandon types "stop", subagent times out and Brandon
 
 ### Long-Horizon Hand-off (context-overflow guard)
 
-Anthropic finding: production agents engage in long conversations that exceed standard context windows; the fix is intelligent compression + memory hand-offs, not larger context. /ship inherits this pattern for long-running sessions (HIGH/CRITICAL with many subagents, or a /ship resume that has accumulated many phases).
+Anthropic finding: production agents engage in long conversations that exceed standard context windows; the fix is intelligent compression + memory hand-offs, not larger context. /assay inherits this pattern for long-running sessions (HIGH/CRITICAL with many subagents, or a /assay resume that has accumulated many phases).
 
 Trigger: any of (a) Claude Code emits a compaction or context-pressure warning, (b) the SessionStart context reports token usage in the high band, (c) the lead has dispatched ≥3 subagents in a single HIGH/CRITICAL run with artifacts accumulating in `state.json.artifacts`. If none of these signals are available, the protocol is opt-in — Brandon or the lead invokes it manually when a long run feels close to the limit.
 
@@ -371,7 +371,7 @@ Protocol:
 2. **Preserve full artifacts.** The Artifact Reference Protocol already wrote the full bodies to `artifacts/<slug>.md`. Do not duplicate them in summaries — refs are enough.
 3. **Fresh subagent, clean context.** When dispatching the next subagent, hand it: (a) its Structured Delegation Brief, (b) the relevant `phase_summaries` entries, (c) the artifact refs it needs by path. Do not pass full prior conversation history.
 4. **Lead can also restart its own context.** If lead approaches the threshold, lead writes a `lead_handoff.md` checkpoint into the session dir capturing remaining steps + outstanding subagent results, sets `state.json.handoff_pending: true`, then a fresh lead instance resumes from that checkpoint.
-5. **Continuity check on resume.** `/ship resume` ALWAYS checks `state.json.handoff_pending`. If `true`, read `lead_handoff.md` first and reconstruct from `phase_summaries` + `artifacts` + checkpoint; do not replay original conversation. If `false`, resume by the original step pointer.
+5. **Continuity check on resume.** `/assay resume` ALWAYS checks `state.json.handoff_pending`. If `true`, read `lead_handoff.md` first and reconstruct from `phase_summaries` + `artifacts` + checkpoint; do not replay original conversation. If `false`, resume by the original step pointer.
 
 Hand-offs are append-only: phase_summaries entries never overwrite prior ones; if a phase is re-entered (e.g., revise loop), append `<step>-r1`, `<step>-r2`.
 
@@ -385,7 +385,7 @@ On any non-success exit from Steps 3, 7, 8, 9, 10, 11, or 11.5 (Brandon abort, s
 2. Invoke the **postmortem** skill in `auto` mode with `failure_step`, `attempted_action`, `gate_verdict`, and `partial_changeset` pulled from the saved state.
 3. The skill surfaces two questions (root cause + change going forward) and routes Brandon's response to project-memory (always proposed), operator-model (when about Brandon/Claude behavior), a skill-description suggestion (when a skill is named), and notion-bridge (when team-relevant).
 4. If Brandon types `skip`, the skill logs to `$HOME/.claude/memory/global/postmortem-skipped-log.md` and exits clean. Skipping never blocks the state-save-and-exit.
-5. Postmortem skill failures are non-blocking — /ship's own halt path completes regardless.
+5. Postmortem skill failures are non-blocking — /assay's own halt path completes regardless.
 
 The skill is opportunistic — it runs after state is already safe on disk. Brandon can also invoke `/postmortem --from-session=<session-id>` later if he skipped at the time and wants to revisit.
 
@@ -427,7 +427,7 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 - ALWAYS save state on interrupt. Brandon should be able to resume.
 - ALWAYS produce the final report, even on partial completion or failure.
 - ALWAYS log force-bypass usage. Every `--force` invocation is reviewed by skill-curator weekly.
-- NEVER run a `/ship <spec-id>` when the spec status is `draft`. Force Brandon through `/spec approve` first.
+- NEVER run a `/assay <spec-id>` when the spec status is `draft`. Force Brandon through `/spec approve` first.
 - NEVER overwrite a spec's `shipped-at` or `shipped-commit` fields once set. Re-shipping with `--force` requires a new spec.
 - ALWAYS snapshot the spec into session state on entry. The snapshot is the contract for this ship run; later edits to the spec file do not affect a run in progress.
 - NEVER commit when `--dry-run` flag is set. Always save state and surface diff + verdict instead.
@@ -441,7 +441,7 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 
 ## Design Influences
 
-- Anthropic Engineering, "How we built our multi-agent research system" (Jun 13, 2025). Effort Budget by Tier (Step 4), Structured Delegation Brief + Parallel Tool Call Rule (Step 5), Breadth-First Heuristic (Step 3), Artifact Reference Protocol + Extended Thinking Guidance (Step 7), Long-Horizon Hand-off (State Management) all adapt patterns from that post. /ship is a single-user code-oriented orchestrator, not a multi-user research product — the patterns are ported as architectural moves, not as performance promises.
+- Anthropic Engineering, "How we built our multi-agent research system" (Jun 13, 2025). Effort Budget by Tier (Step 4), Structured Delegation Brief + Parallel Tool Call Rule (Step 5), Breadth-First Heuristic (Step 3), Artifact Reference Protocol + Extended Thinking Guidance (Step 7), Long-Horizon Hand-off (State Management) all adapt patterns from that post. /assay is a single-user code-oriented orchestrator, not a multi-user research product — the patterns are ported as architectural moves, not as performance promises.
 
 ## Plugin Compatibility
 
@@ -459,16 +459,16 @@ Enhanced by (in order of impact):
 - `caveman` — MCP description compression.
 
 ## Quick Reference
-/ship "<task>"                          # Default. Auto risk, judges per tier, ask-before-push.
-/ship <spec-id>                         # Consume approved spec. Status, risk-tier, success criteria pre-loaded.
-/ship <spec-id> --force                 # Re-ship a previously-shipped spec (rare; usually write a new spec instead).
-/ship "<task>" --risk=high              # Force HIGH tier.
-/ship "<task>" --no-judges              # Skip judges (TRIVIAL/LOW only).
-/ship "<task>" --skip-tests --skip-lint # Bypass selected gates with logging.
-/ship "<task>" --force                  # Emergency hotfix. All gates bypassed except approval.
-/ship "<task>" --commit-message="..."   # Use exact commit message.
-/ship "<task>" --auto-push              # Push immediately after commit.
-/ship "<task>" --deploy                 # After commit, run deploy → canary (Step 11.5). Explicit deploy approval still required.
-/ship "<task>" --no-deploy              # Suppress deploy → canary even for a deploy-verb task.
-/ship "<task>" --dry-run                # Run through done-gate, show diff + verdict, halt before commit. Resume to commit.
-/ship resume                            # Resume last interrupted session (or finish a dry-run).
+/assay "<task>"                          # Default. Auto risk, judges per tier, ask-before-push.
+/assay <spec-id>                         # Consume approved spec. Status, risk-tier, success criteria pre-loaded.
+/assay <spec-id> --force                 # Re-ship a previously-shipped spec (rare; usually write a new spec instead).
+/assay "<task>" --risk=high              # Force HIGH tier.
+/assay "<task>" --no-judges              # Skip judges (TRIVIAL/LOW only).
+/assay "<task>" --skip-tests --skip-lint # Bypass selected gates with logging.
+/assay "<task>" --force                  # Emergency hotfix. All gates bypassed except approval.
+/assay "<task>" --commit-message="..."   # Use exact commit message.
+/assay "<task>" --auto-push              # Push immediately after commit.
+/assay "<task>" --deploy                 # After commit, run deploy → canary (Step 11.5). Explicit deploy approval still required.
+/assay "<task>" --no-deploy              # Suppress deploy → canary even for a deploy-verb task.
+/assay "<task>" --dry-run                # Run through done-gate, show diff + verdict, halt before commit. Resume to commit.
+/assay resume                            # Resume last interrupted session (or finish a dry-run).

@@ -179,5 +179,5 @@ If ALL of Steps 2-4 produce no output: still write the retro file with whatever 
 ## When to Run
 
 - **Default cadence**: Sunday evening.
-- **Off-cycle triggers**: after a `/ship --force` was used (force-bypass review), after a project namespace ships its first MVP, before any external commitment (investor update, customer demo, team retro).
+- **Off-cycle triggers**: after a `/assay --force` was used (force-bypass review), after a project namespace ships its first MVP, before any external commitment (investor update, customer demo, team retro).
 - **Skip if**: window has zero activity AND last weekly was within 14 days. Surface "Nothing changed since <date>. Skip? (yes/no)".

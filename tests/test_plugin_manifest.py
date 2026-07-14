@@ -16,7 +16,7 @@ def test_manifest_required_keys(manifest):
 
 
 def test_manifest_name(manifest):
-    assert manifest["name"] == "claude-ship"
+    assert manifest["name"] == "assay"
 
 
 def test_manifest_version_is_semver(manifest):

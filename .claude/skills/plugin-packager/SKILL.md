@@ -1,6 +1,6 @@
 ---
 name: plugin-packager
-description: Extracts a set of local `~/.claude/commands/*.md` + `~/.claude/skills/<name>/` files into a standalone Claude Code plugin repository, then optionally swaps the local files for symlinks into the repo so `git pull` propagates updates. Use when Brandon says "package this as a plugin", "turn these skills into a repo I can share", "extract X command and its skills into something installable", or after a /ship run produces a coherent set of skills + commands that should be versioned, shared, or installed on another machine. Generates `.claude-plugin/plugin.json`, README, INSTALL (three install paths), CONFIG (personalization guide), MIT LICENSE, .gitignore, and a `personalize.sh` script that rewrites operator-specific strings (name, project namespaces) without touching pinned IDs or pipeline step references. Backs up originals before swapping local files for symlinks. Hard refuses to package or rewrite files that are not Brandon-owned (no plugin-shipped skill extraction).
+description: Extracts a set of local `~/.claude/commands/*.md` + `~/.claude/skills/<name>/` files into a standalone Claude Code plugin repository, then optionally swaps the local files for symlinks into the repo so `git pull` propagates updates. Use when Brandon says "package this as a plugin", "turn these skills into a repo I can share", "extract X command and its skills into something installable", or after a /assay run produces a coherent set of skills + commands that should be versioned, shared, or installed on another machine. Generates `.claude-plugin/plugin.json`, README, INSTALL (three install paths), CONFIG (personalization guide), MIT LICENSE, .gitignore, and a `personalize.sh` script that rewrites operator-specific strings (name, project namespaces) without touching pinned IDs or pipeline step references. Backs up originals before swapping local files for symlinks. Hard refuses to package or rewrite files that are not Brandon-owned (no plugin-shipped skill extraction).
 ---
 
 # plugin-packager
@@ -12,7 +12,7 @@ This skill captures the seven-step flow so it can be invoked deliberately withou
 ## When to invoke
 
 - Brandon says "package this as a plugin", "make this shareable", "extract these into a repo I can share with others".
-- A /ship run produces a coherent set of N skills + M commands that hang together (e.g. `/ship` + its 11 supporting skills, or `/spec` + spec-builder + project-memory).
+- A /assay run produces a coherent set of N skills + M commands that hang together (e.g. `/assay` + its 11 supporting skills, or `/spec` + spec-builder + project-memory).
 - Brandon wants to version a subset of `~/.claude/` content outside the home directory.
 - Brandon explicitly invokes `/plugin-package <name>` (slash command TBD).
 

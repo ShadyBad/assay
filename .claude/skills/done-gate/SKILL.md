@@ -1,6 +1,6 @@
 ---
 name: done-gate
-description: Enforces the completion contract from CLAUDE.md before any commit can proceed. Checks success criteria, tests, lint, type check (via pyright-lsp for Python), no TODO/debug leftovers, judge-panel verdict, and Brandon's commit approval. If any check fails, blocks the commit with the specific failure and the minimum fix. Use at the end of every /ship before invoking commit-protocol, when Brandon asks "is this ready to commit", or when any agent attempts to commit code. Can be augmented by hookify plugin for hook-layer enforcement that fires even outside /ship. Eight checks total, all must pass.
+description: Enforces the completion contract from CLAUDE.md before any commit can proceed. Checks success criteria, tests, lint, type check (via pyright-lsp for Python), no TODO/debug leftovers, judge-panel verdict, and Brandon's commit approval. If any check fails, blocks the commit with the specific failure and the minimum fix. Use at the end of every /assay before invoking commit-protocol, when Brandon asks "is this ready to commit", or when any agent attempts to commit code. Can be augmented by hookify plugin for hook-layer enforcement that fires even outside /assay. Eight checks total, all must pass.
 ---
 
 # Done Gate Skill
@@ -16,9 +16,9 @@ The completion contract from CLAUDE.md, enforced as 8 sequential checks. ALL mus
 - Task has stated success criteria, in plain language.
 - Success criteria are measurable (testable, observable, or decidable by inspection).
 
-This check operationalizes "end-state evaluation" — the appendix recommendation from Anthropic's multi-agent research post: judge whether the final state is correct rather than whether intermediate steps matched a prescribed path. /ship runs are allowed many valid execution paths; Check 1 is the contract that the outcome lands.
+This check operationalizes "end-state evaluation" — the appendix recommendation from Anthropic's multi-agent research post: judge whether the final state is correct rather than whether intermediate steps matched a prescribed path. /assay runs are allowed many valid execution paths; Check 1 is the contract that the outcome lands.
 
-**Spec-driven path.** If the /ship run was invoked with a spec-id (state.json has a `spec-snapshot` reference), Check 1 reads the Success criteria section from the snapshot at `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/spec-snapshot.md`:
+**Spec-driven path.** If the /assay run was invoked with a spec-id (state.json has a `spec-snapshot` reference), Check 1 reads the Success criteria section from the snapshot at `$HOME/.claude/memory/sessions/<YYYY-MM-DD>-<session-id>/spec-snapshot.md`:
 
 1. Parse each bullet under the `## Success criteria` heading.
 2. For each bullet, show Brandon the criterion and ask: "Met? (yes/no/partial/skip-with-reason)".
@@ -98,7 +98,7 @@ Fix before commit."
 Fail mode: "Judge panel verdict: <block | revise with unresolved items>.
 Blocking concerns:
 - <judge>: <concern>
-Address before commit, or override with `/ship --no-judges` (requires Brandon explicit override)."
+Address before commit, or override with `/assay --no-judges` (requires Brandon explicit override)."
 
 ### Check 8: Brandon Approval
 
@@ -136,17 +136,17 @@ Minimum fix:
 To proceed:
 
 Apply the fix
-Re-run /ship to re-verify, OR run /done-gate to re-check just this gate
+Re-run /assay to re-verify, OR run /done-gate to re-check just this gate
 
 
 ## Hookify Integration
 
-When `hookify` plugin is installed, done-gate registers hooks for deterministic enforcement OUTSIDE the /ship pipeline:
+When `hookify` plugin is installed, done-gate registers hooks for deterministic enforcement OUTSIDE the /assay pipeline:
 
 - **PreToolUse** hook on `bash` calls matching `git commit*` — runs done-gate quick check before any git commit shell command.
 - **PreToolUse** hook on Edit/Write tools targeting protected paths — blocks edits to operator-model.md, judge-panel/SKILL.md without explicit Brandon override.
 
-These hooks fire even when /ship is not in use. Brandon cannot bypass with raw bash unless he explicitly disables hookify rules.
+These hooks fire even when /assay is not in use. Brandon cannot bypass with raw bash unless he explicitly disables hookify rules.
 
 Hook configuration lives at `$HOME/.claude/hooks/done-gate-rules.md` (managed by hookify plugin).
 
@@ -154,11 +154,11 @@ Hook configuration lives at `$HOME/.claude/hooks/done-gate-rules.md` (managed by
 
 For when Brandon needs to bypass specific checks (rare, high-trust situations):
 
-- `/ship --skip-tests "<task>"` — bypasses Check 2/3. Requires note explaining why.
-- `/ship --skip-lint "<task>"` — bypasses Check 5. Rare.
-- `/ship --skip-types "<task>"` — bypasses Check 6.
-- `/ship --no-judges "<task>"` — bypasses Check 7 (only for TRIVIAL/LOW changes; HIGH/CRITICAL still enforces).
-- `/ship --force "<task>"` — bypasses ALL checks except 8 (Brandon approval). Logged loudly. Used for emergency hotfixes only.
+- `/assay --skip-tests "<task>"` — bypasses Check 2/3. Requires note explaining why.
+- `/assay --skip-lint "<task>"` — bypasses Check 5. Rare.
+- `/assay --skip-types "<task>"` — bypasses Check 6.
+- `/assay --no-judges "<task>"` — bypasses Check 7 (only for TRIVIAL/LOW changes; HIGH/CRITICAL still enforces).
+- `/assay --force "<task>"` — bypasses ALL checks except 8 (Brandon approval). Logged loudly. Used for emergency hotfixes only.
 
 `--force` bypass is logged to `$HOME/.claude/memory/global/force-bypass-log.md` with timestamp, project, task, and reason. Reviewed by skill-curator weekly.
 
@@ -174,7 +174,7 @@ Some checks are skipped automatically by risk tier (matching CLAUDE.md's risk ti
 
 ## Integration with Other Skills
 
-- **/ship** — invokes done-gate after judge-panel returns, before commit-protocol.
+- **/assay** — invokes done-gate after judge-panel returns, before commit-protocol.
 - **judge-panel** — feeds verdict into Check 7.
 - **commit-protocol** — receives handoff after Check 7 passes; manages Check 8.
 - **hookify** — provides deterministic enforcement at the hook layer.

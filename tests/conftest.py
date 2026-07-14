@@ -1,6 +1,6 @@
-"""Shared fixtures and helpers for the claude-ship plugin-structure tests.
+"""Shared fixtures and helpers for the Assay plugin-structure tests.
 
-claude-ship ships markdown commands + skills + shell hooks, not importable
+Assay ships markdown commands + skills + shell hooks, not importable
 Python. These tests validate the plugin's own structure so that drift — a
 miscounted skill, malformed frontmatter, a broken doc link — fails CI instead
 of shipping silently.

@@ -1,15 +1,15 @@
 ---
 name: judge-panel
-description: Multi-judge code review system invoked before any commit by /ship command. Reviews diffs at five risk tiers (TRIVIAL, LOW, MEDIUM, HIGH, CRITICAL) using a roster of 29 specialized judges across three tiers. Use when about to commit code changes, when /ship is invoked, when a diff needs review, or when Brandon explicitly requests "judge this" or "review this diff". Tier 1 judges focus on code quality and delegate to pr-review-toolkit agents where possible. Tier 2 judges focus on systemic risks (security, threat modeling, cost). Tier 3 judges apply business and product wisdom for strategic decisions. Risk tier determines which subset is invoked. Brandon can override with --judges, --no-judges, or --risk flags. Returns aggregate verdict of ship, revise, or block with structured concerns.
+description: Multi-judge code review system invoked before any commit by /assay command. Reviews diffs at five risk tiers (TRIVIAL, LOW, MEDIUM, HIGH, CRITICAL) using a roster of 29 specialized judges across three tiers. Use when about to commit code changes, when /assay is invoked, when a diff needs review, or when Brandon explicitly requests "judge this" or "review this diff". Tier 1 judges focus on code quality and delegate to pr-review-toolkit agents where possible. Tier 2 judges focus on systemic risks (security, threat modeling, cost). Tier 3 judges apply business and product wisdom for strategic decisions. Risk tier determines which subset is invoked. Brandon can override with --judges, --no-judges, or --risk flags. Returns aggregate verdict of ship, revise, or block with structured concerns.
 ---
 
 # Judge Panel: 29-Judge Code Review System
 
-This skill is the core review mechanism invoked by `/ship` before any commit. It scales judge invocation to risk tier, parallelizes calls where possible, and delegates to plugin agents (`pr-review-toolkit`, `ecc`'s reviewer agents) to minimize token cost.
+This skill is the core review mechanism invoked by `/assay` before any commit. It scales judge invocation to risk tier, parallelizes calls where possible, and delegates to plugin agents (`pr-review-toolkit`, `ecc`'s reviewer agents) to minimize token cost.
 
 ## Relationship to other review-shaped skills
 
-This is the sole review entry point for anything ship-bound — any `/ship` invocation, or an explicit "review this before I commit" request. Don't let another review skill fire independently on the same diff; that risks two conflicting verdicts on one change. Most of the apparent overlap here is narrower-scoped than it looks on the surface, not truly redundant:
+This is the sole review entry point for anything ship-bound — any `/assay` invocation, or an explicit "review this before I commit" request. Don't let another review skill fire independently on the same diff; that risks two conflicting verdicts on one change. Most of the apparent overlap here is narrower-scoped than it looks on the surface, not truly redundant:
 
 - **Native `code-review` skill** — genuinely overlapping for ad hoc, non-ship review ("review this file" outside a commit flow). Fine standalone there; prefer judge-panel once a diff is ship-bound.
 - **`ecc:security-review`** — a narrower auth/secrets/API-endpoint checklist, not a full diff review. Legitimately different lens from the Tier 2 security judge here; can run alongside, not instead of.
@@ -22,7 +22,7 @@ This is the sole review entry point for anything ship-bound — any `/ship` invo
 The skill receives:
 - `diff` — the unified diff to review
 - `task_context` — exactly 2 sentences describing what the change accomplishes
-- `risk_tier` — one of TRIVIAL, LOW, MEDIUM, HIGH, CRITICAL (from `/ship` classification)
+- `risk_tier` — one of TRIVIAL, LOW, MEDIUM, HIGH, CRITICAL (from `/assay` classification)
 - `project` — one of auto-co, margin-invest, personal
 - Optional `judges_override` — comma-separated list to invoke instead of tier defaults
 - Optional `no_judges` — boolean flag, skip entirely
@@ -93,7 +93,7 @@ Each judge runs on a model matched to the reasoning depth its concern demands, n
 | **Sonnet** (`claude-sonnet-4-6`) | 3 Performance, 4 Test Architect, 5 API Designer, 6 Data Engineer, 7 DevOps, 10 Backend, 11 Database, 19 Cost Accountant | Substantive review where Sonnet's signal is close to Opus at lower cost. |
 | **Haiku** (`claude-haiku-4-5`) | 8 Accessibility, 9 Frontend, 14 Documentation, 15 Naming Critic, 16 Simplicity | Nit-class / pattern-matching concerns; cheap model is sufficient. |
 
-Override precedence: a judge's assigned model here wins over the tier default model from `/ship` Step 4. When a judge delegates to a `pr-review-toolkit` / `ecc` agent (see Delegation Priority below), pass the same assigned model to that agent dispatch. Hard floor: judges named in the Hard Constraints (Security, Karpathy on HIGH/CRITICAL) always run at their Opus assignment — never downgraded.
+Override precedence: a judge's assigned model here wins over the tier default model from `/assay` Step 4. When a judge delegates to a `pr-review-toolkit` / `ecc` agent (see Delegation Priority below), pass the same assigned model to that agent dispatch. Hard floor: judges named in the Hard Constraints (Security, Karpathy on HIGH/CRITICAL) always run at their Opus assignment — never downgraded.
 
 ## Concern-Detection Pre-Pass (diff-aware gating)
 
@@ -125,7 +125,7 @@ If the pre-pass itself fails or times out, fall back to the full tier template (
 ## Risk Tier → Judge Invocation Map
 
 ### TRIVIAL
-No judges. `/ship` skips the panel entirely. Return immediate `ship` verdict.
+No judges. `/assay` skips the panel entirely. Return immediate `ship` verdict.
 
 ### LOW
 1-2 Tier 1 judges, picked by change type:
@@ -163,14 +163,14 @@ Full Tier 1 + full Tier 2 + relevant Tier 3:
 
 ## Override Flags
 
-Brandon can override the tier-based selection via `/ship`:
+Brandon can override the tier-based selection via `/assay`:
 
-- `/ship --no-judges "<task>"` — skip the panel entirely. Used for trivial fixes Brandon already verified.
-- `/ship --judges=karpathy,security "<task>"` — invoke only the named judges. Match by name (case-insensitive, partial match allowed).
-- `/ship --judges=tier1 "<task>"` — invoke all of Tier 1.
-- `/ship --judges=+hormozi "<task>"` — add judges to the tier defaults (the `+` prefix).
-- `/ship --judges=-naming "<task>"` — exclude judges from tier defaults (the `-` prefix).
-- `/ship --risk=high "<task>"` — force a specific risk tier regardless of automatic classification.
+- `/assay --no-judges "<task>"` — skip the panel entirely. Used for trivial fixes Brandon already verified.
+- `/assay --judges=karpathy,security "<task>"` — invoke only the named judges. Match by name (case-insensitive, partial match allowed).
+- `/assay --judges=tier1 "<task>"` — invoke all of Tier 1.
+- `/assay --judges=+hormozi "<task>"` — add judges to the tier defaults (the `+` prefix).
+- `/assay --judges=-naming "<task>"` — exclude judges from tier defaults (the `-` prefix).
+- `/assay --risk=high "<task>"` — force a specific risk tier regardless of automatic classification.
 
 ## Per-Judge Invocation Protocol
 

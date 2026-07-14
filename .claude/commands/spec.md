@@ -1,12 +1,12 @@
 ---
 name: spec
-description: Turn a fuzzy goal into a crisp, /ship-consumable spec. Wires superpowers:brainstorming + ecc:prp-prd + operator-model into one interview that produces a 1-page spec with measurable success criteria, adversarial risks, and a draft/approved/shipped status gate. The missing step between idea and execution. Most bad ships come from shipping the wrong thing well — this command forces the scoping moment. Subcommands list/show/approve/revise for managing the spec library.
+description: Turn a fuzzy goal into a crisp, /assay-consumable spec. Wires superpowers:brainstorming + ecc:prp-prd + operator-model into one interview that produces a 1-page spec with measurable success criteria, adversarial risks, and a draft/approved/shipped status gate. The missing step between idea and execution. Most bad ships come from shipping the wrong thing well — this command forces the scoping moment. Subcommands list/show/approve/revise for managing the spec library.
 argument-hint: "<fuzzy goal>" [--quick] [--namespace=<ns>] [--risk=<tier>] | list [--status=<s>] [--namespace=all] | show <spec-id> | approve <spec-id> | revise <spec-id>
 ---
 
 # /spec — Scoping Gate
 
-Entry point for the `spec-builder` skill. Sits one level upstream of `/ship`. Run this when the task is fuzzy. Run `/ship <spec-id>` once the spec is approved.
+Entry point for the `spec-builder` skill. Sits one level upstream of `/assay`. Run this when the task is fuzzy. Run `/assay <spec-id>` once the spec is approved.
 
 ## Invocation
 
@@ -37,7 +37,7 @@ Summary:
 6. **SYNTHESIZE** — generate spec markdown with auto-filled frontmatter. Spec-id is `<kebab-slug>-<YYYY-MM-DD>`; collisions append `-2`, `-3`.
 7. **SHOW + APPROVE** — print the spec and ask: `approve` / `draft` / `revise` / `abort`. Default is `draft`. Status only flips to `approved` on explicit `approve`.
 8. **WRITE** — save to `$HOME/.claude/memory/projects/<ns>/specs/<spec-id>.md`. Append row to `_index.md`.
-9. **NEXT** — print `/ship <spec-id>` if approved, else `/spec approve <spec-id>`.
+9. **NEXT** — print `/assay <spec-id>` if approved, else `/spec approve <spec-id>`.
 
 ## Spec file location
 
@@ -65,11 +65,11 @@ shipped-commit: <SHA or empty>
 
 And 7 mandatory sections: Problem, Hypothesis, Success criteria, Non-goals, Constraints, Risks / Ways this could be wrong, Plan sketch.
 
-Missing any mandatory section = invalid spec, `/ship` refuses.
+Missing any mandatory section = invalid spec, `/assay` refuses.
 
 ## Status gate
 
-| Status | `/ship` behavior |
+| Status | `/assay` behavior |
 |--------|------------------|
 | `draft` | Refuses. Asks Brandon to run `/spec approve <spec-id>` first. |
 | `approved` | Runs. Snapshots the spec into session state on entry. Locks for the duration of the run. |
@@ -82,16 +82,16 @@ This gate is what makes a spec a contract instead of a doc.
 - No `status: approved` without Brandon explicitly typing `approve`.
 - No overwriting `shipped` specs. Revising creates a new draft on the same id.
 - No skipping the Risks section. Every spec ends with an adversarial check.
-- No inferred success criteria. If Brandon refuses to give a measurable outcome, the spec is aborted with: "Without measurable success criteria, /ship cannot verify done. Walk away or come back with a number."
+- No inferred success criteria. If Brandon refuses to give a measurable outcome, the spec is aborted with: "Without measurable success criteria, /assay cannot verify done. Walk away or come back with a number."
 
 ## When NOT to use /spec
 
-- TRIVIAL changes (typo, comment edit, formatting). Just `/ship "fix typo in X"`.
-- LOW changes with obvious success criteria (e.g. "rename function foo to bar across the codebase"). Just `/ship`.
-- Emergency hotfixes. Use `/ship --force` with a written incident note.
-- Anything where Brandon already has a written spec elsewhere (Notion, GitHub issue with acceptance criteria). Paste into `/ship`'s task description.
+- TRIVIAL changes (typo, comment edit, formatting). Just `/assay "fix typo in X"`.
+- LOW changes with obvious success criteria (e.g. "rename function foo to bar across the codebase"). Just `/assay`.
+- Emergency hotfixes. Use `/assay --force` with a written incident note.
+- Anything where Brandon already has a written spec elsewhere (Notion, GitHub issue with acceptance criteria). Paste into `/assay`'s task description.
 
-Rule of thumb: if the task description is under 8 words AND has no measurable outcome, you need `/spec`. If it's 20+ words with concrete files and a number, just `/ship`.
+Rule of thumb: if the task description is under 8 words AND has no measurable outcome, you need `/spec`. If it's 20+ words with concrete files and a number, just `/assay`.
 
 ## Examples
 
@@ -106,17 +106,17 @@ Rule of thumb: if the task description is under 8 words AND has no measurable ou
   -> Shows all draft specs in current namespace.
 
 /spec approve add-sharpe-engine-2026-05-17
-  -> Flips status. Now /ship add-sharpe-engine-2026-05-17 will run.
+  -> Flips status. Now /assay add-sharpe-engine-2026-05-17 will run.
 ```
 
 ## Coordination
 
-- `/ship <spec-id>` consumes approved specs. Step 1 PARSE resolves spec-id, Step 11 COMMIT flips status to `shipped`.
+- `/assay <spec-id>` consumes approved specs. Step 1 PARSE resolves spec-id, Step 11 COMMIT flips status to `shipped`.
 - `judge-panel` reads the spec's `risk-tier` field to determine which judges to invoke.
 - `done-gate` reads the spec's Success criteria section for Check 1.
 - `project-memory` and `session-recall` provide the prior-context lookup in Step 3.
 - `operator-model` provides the constraint bias for the interrogation.
-- `notion-bridge` may push the spec to Notion at `/ship`'s Step 14 if Brandon approves the push.
+- `notion-bridge` may push the spec to Notion at `/assay`'s Step 14 if Brandon approves the push.
 
 ## Failure modes
 

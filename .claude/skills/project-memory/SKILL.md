@@ -1,6 +1,6 @@
 ---
 name: project-memory
-description: Routes durable lessons to per-project memory files and loads relevant lessons at task start. Maintains separate lesson namespaces for auto-co, margin-invest, and personal projects. Use when starting a new task (loads project's recent lessons into context), when a /ship run completes (appends new lessons), when Brandon explicitly states a preference or correction worth remembering, when a recurring pattern is observed across 3+ tasks, or when the user asks "remember this" or "log this". Detects current project via .claude/project-name file, git remote URL pattern matching, or working directory path. Falls back to personal namespace. Caps at 500 entries per project; archives oldest 100 into compressed file when over limit. Never deletes entries without compression. Always appends, never overwrites individual entries.
+description: Routes durable lessons to per-project memory files and loads relevant lessons at task start. Maintains separate lesson namespaces for auto-co, margin-invest, and personal projects. Use when starting a new task (loads project's recent lessons into context), when a /assay run completes (appends new lessons), when Brandon explicitly states a preference or correction worth remembering, when a recurring pattern is observed across 3+ tasks, or when the user asks "remember this" or "log this". Detects current project via .claude/project-name file, git remote URL pattern matching, or working directory path. Falls back to personal namespace. Caps at 500 entries per project; archives oldest 100 into compressed file when over limit. Never deletes entries without compression. Always appends, never overwrites individual entries.
 ---
 
 # Project Memory Skill
@@ -57,7 +57,7 @@ Rules:
 
 The skill appends an entry when:
 
-1. `/ship` completes successfully and the task taught a generalizable pattern.
+1. `/assay` completes successfully and the task taught a generalizable pattern.
 2. Brandon explicitly says "remember this" or "log this lesson".
 3. A judge from the judge-panel raises a concern that becomes a learned constraint.
 4. The same correction is made 2+ times in a session (high-signal pattern).
@@ -87,7 +87,7 @@ When `lessons.md` exceeds 500 entries:
 4. Move the 100 raw entries to `archived-lessons.md` (append).
 5. Replace them in `lessons.md` with the summary entries.
 
-This runs at the end of `/ship` when entry count is checked, not on every read.
+This runs at the end of `/assay` when entry count is checked, not on every read.
 
 ## Cross-Project Lessons
 

@@ -1,6 +1,6 @@
 ---
 name: commit-protocol
-description: Engineer-in-the-loop commit flow. Generates conventional commit messages, shows Brandon a brief overview (file count, additions, deletions, changed files, message), waits for explicit ship or y approval, then commits. After commit, asks if Brandon wants to push. Never commits with --no-verify, never force pushes, never auto-pushes — all require explicit Brandon override. Builds on commit-commands plugin's primitives. Use at the end of every /ship after done-gate Check 7 passes, when Brandon asks "commit this" or "ready to commit", or after a long-running task produces stage-able changes. Coordinates with done-gate for Check 8 (Brandon approval).
+description: Engineer-in-the-loop commit flow. Generates conventional commit messages, shows Brandon a brief overview (file count, additions, deletions, changed files, message), waits for explicit ship or y approval, then commits. After commit, asks if Brandon wants to push. Never commits with --no-verify, never force pushes, never auto-pushes — all require explicit Brandon override. Builds on commit-commands plugin's primitives. Use at the end of every /assay after done-gate Check 7 passes, when Brandon asks "commit this" or "ready to commit", or after a long-running task produces stage-able changes. Coordinates with done-gate for Check 8 (Brandon approval).
 ---
 
 # Commit Protocol Skill
@@ -100,7 +100,7 @@ If git commit succeeds:
 
 If git commit fails (e.g., pre-commit hook rejected):
 ✗ Commit failed: <git error output>
-This usually means a pre-commit hook rejected the change. Fix the issue and run /ship to re-attempt.
+This usually means a pre-commit hook rejected the change. Fix the issue and run /assay to re-attempt.
 
 ### Step 5: Push Decision
 
@@ -152,16 +152,16 @@ If any rule is violated by the generated message, regenerate before showing Bran
 
 ## Override Flags
 
-- `/ship --commit-message="<exact message>"` — use Brandon's exact message, skip generation.
-- `/ship --amend "<task>"` — amend last commit instead of new commit. Confirms with Brandon before amending.
-- `/ship --no-push "<task>"` — skip the push question, commit only.
-- `/ship --auto-push "<task>"` — push immediately after commit without asking. Use sparingly.
+- `/assay --commit-message="<exact message>"` — use Brandon's exact message, skip generation.
+- `/assay --amend "<task>"` — amend last commit instead of new commit. Confirms with Brandon before amending.
+- `/assay --no-push "<task>"` — skip the push question, commit only.
+- `/assay --auto-push "<task>"` — push immediately after commit without asking. Use sparingly.
 
 ## Integration with Other Skills
 
 - **done-gate** — hands off to commit-protocol after Checks 1-7 pass. commit-protocol owns Check 8.
 - **judge-panel** — verdict is shown in the overview for context.
-- **/ship** — invokes commit-protocol as the final pipeline step before LEARN.
+- **/assay** — invokes commit-protocol as the final pipeline step before LEARN.
 - **github plugin** — used for PR creation when Brandon chooses `pr`.
 
 ## Plugin Compatibility

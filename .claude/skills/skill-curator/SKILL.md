@@ -1,6 +1,6 @@
 ---
 name: skill-curator
-description: Reviews all installed skills weekly to detect duplicates, stale, broken, and low-quality skills. Proposes consolidations, archives, and new skills from observed multi-step task patterns. Never auto-installs or auto-modifies — all changes are proposals that Brandon reviews. Tracks skill invocation counts in skill-stats.json. Delegates skill validation to plugin-dev plugin's skill-reviewer and plugin-validator agents when available. Use when /curate is invoked manually, when 7+ days have passed since last curator run (checked at end of every /ship), when Brandon asks "what skills do I have" or "audit my skills", or after a task that took 5+ tool calls and produced a generalizable pattern (proposes a new skill draft). Pinned skills are protected: judge-panel, project-memory, session-recall, operator-model, skill-curator, done-gate, commit-protocol, notion-bridge, mcp-router, spec-builder, postmortem. Never archives or modifies pinned skills.
+description: Reviews all installed skills weekly to detect duplicates, stale, broken, and low-quality skills. Proposes consolidations, archives, and new skills from observed multi-step task patterns. Never auto-installs or auto-modifies — all changes are proposals that Brandon reviews. Tracks skill invocation counts in skill-stats.json. Delegates skill validation to plugin-dev plugin's skill-reviewer and plugin-validator agents when available. Use when /curate is invoked manually, when 7+ days have passed since last curator run (checked at end of every /assay), when Brandon asks "what skills do I have" or "audit my skills", or after a task that took 5+ tool calls and produced a generalizable pattern (proposes a new skill draft). Pinned skills are protected: judge-panel, project-memory, session-recall, operator-model, skill-curator, done-gate, commit-protocol, notion-bridge, mcp-router, spec-builder, postmortem. Never archives or modifies pinned skills.
 ---
 
 # Skill Curator: Weekly Self-Curation Loop
@@ -114,7 +114,7 @@ Stats update mechanism:
 - Increment `invocations` and update `last_invoked` whenever a skill fires (via hook or end-of-task report).
 - Increment `corrections` when Brandon corrects a skill's output in-session.
 - Increment `blocked_outputs` when done-gate blocks a commit due to this skill's output.
-- Increment `user_overrides` when Brandon overrides this skill's decision (e.g., /ship --no-judges after the skill said to invoke).
+- Increment `user_overrides` when Brandon overrides this skill's decision (e.g., /assay --no-judges after the skill said to invoke).
 
 Stats are append-update only. Never decrement. Brandon can manually edit if needed.
 
@@ -287,7 +287,7 @@ The skip log itself is never modified by the curator. Read-only.
 The curator runs in these scenarios:
 
 1. **Manual** — Brandon runs `/curate` (slash command defined separately).
-2. **Scheduled** — At end of every `/ship`, check `$HOME/.claude/memory/global/last-curator-run.txt`. If 7+ days have passed (or file does not exist), trigger a background curator pass after the ship completes.
+2. **Scheduled** — At end of every `/assay`, check `$HOME/.claude/memory/global/last-curator-run.txt`. If 7+ days have passed (or file does not exist), trigger a background curator pass after the ship completes.
 3. **Post-task proposal** — After any task meeting the self-creation criteria above, run only the propose-new-skill flow (not full audit).
 
 `last-curator-run.txt` contains a single ISO timestamp updated at the end of each full run.

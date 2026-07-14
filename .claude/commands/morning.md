@@ -118,13 +118,13 @@ Never recommend a pattern from the operator-model "Things Brandon hates" list.
 | Proposed | Dir empty | Skip section. Continue. |
 | Session | None recent | "(clean slate)". |
 
-If ALL sources fail: surface to Brandon. Offer to run `/ship "<task>"` directly.
+If ALL sources fail: surface to Brandon. Offer to run `/assay "<task>"` directly.
 
 ## Hard Constraints
 
 - READ-ONLY. Never write to lessons, operator-model, sessions, or _proposed/.
 - NEVER push to Notion from /morning. That is /weekly's job.
-- NEVER auto-invoke /ship. Just surface the recommendation.
+- NEVER auto-invoke /assay. Just surface the recommendation.
 - NEVER suggest more than ONE highest-leverage action. The whole point is focus.
 
 ## Coordination

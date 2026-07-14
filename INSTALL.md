@@ -7,63 +7,63 @@ Pick one of three install paths.
 If Claude Code's plugin loader is enabled, drop the repo into your local plugins directory:
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git ~/.claude/plugins/local/claude-ship
+git clone https://github.com/shadybad/assay.git ~/.claude/plugins/local/assay
 ```
 
 Verify the manifest is found:
 
 ```bash
-ls ~/.claude/plugins/local/claude-ship/.claude-plugin/plugin.json
+ls ~/.claude/plugins/local/assay/.claude-plugin/plugin.json
 ```
 
-Restart Claude Code. Commands appear under their own names (`/ship`, `/spec`, etc.). Skills surface via the `Skill` tool's available list.
+Restart Claude Code. Commands appear under their own names (`/assay`, `/spec`, etc.). Skills surface via the `Skill` tool's available list.
 
 ## Path 2 — Direct drop into `~/.claude/`
 
 If you don't want a plugin wrapper, copy commands and skills directly:
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git /tmp/claude-ship
+git clone https://github.com/shadybad/assay.git /tmp/assay
 
 # Commands
-cp -i /tmp/claude-ship/.claude/commands/*.md ~/.claude/commands/
+cp -i /tmp/assay/.claude/commands/*.md ~/.claude/commands/
 
 # Skills — copy each subdirectory
-cp -ri /tmp/claude-ship/.claude/skills/* ~/.claude/skills/
+cp -ri /tmp/assay/.claude/skills/* ~/.claude/skills/
 ```
 
-Use `-i` to avoid overwriting your existing files. Diff first if you already have a `ship.md` or any skill with the same name.
+Use `-i` to avoid overwriting your existing files. Diff first if you already have an `assay.md` or any skill with the same name.
 
 ## Path 3 — Symlink (for development)
 
 If you want to edit the files in one place and have them reflected everywhere:
 
 ```bash
-git clone https://github.com/shadybad/claude-ship.git ~/repos/claude-ship
+git clone https://github.com/shadybad/assay.git ~/repos/assay
 
 # Plugin layer
 mkdir -p ~/.claude/plugins/local
-ln -s ~/repos/claude-ship ~/.claude/plugins/local/claude-ship
+ln -s ~/repos/assay ~/.claude/plugins/local/assay
 ```
 
 Or symlink the inner directories directly into `~/.claude/`:
 
 ```bash
-for cmd in ~/repos/claude-ship/.claude/commands/*.md; do
+for cmd in ~/repos/assay/.claude/commands/*.md; do
   ln -s "$cmd" ~/.claude/commands/$(basename "$cmd")
 done
 
-for skill_dir in ~/repos/claude-ship/.claude/skills/*/; do
+for skill_dir in ~/repos/assay/.claude/skills/*/; do
   ln -s "$skill_dir" ~/.claude/skills/$(basename "$skill_dir")
 done
 ```
 
 ## Personalize before first use
 
-The skills reference the original author's name and project namespaces. Personalize before running `/ship` for real:
+The skills reference the original author's name and project namespaces. Personalize before running `/assay` for real:
 
 ```bash
-cd ~/repos/claude-ship   # or wherever you cloned
+cd ~/repos/assay   # or wherever you cloned
 ./scripts/personalize.sh "<your-name>" "<project-1>" "<project-2>" "<project-3>"
 ```
 
@@ -71,7 +71,7 @@ Then re-copy or re-symlink. See [CONFIG.md](./CONFIG.md) for what changes.
 
 ## Required directories
 
-`/ship` writes session state and lessons under `~/.claude/memory/`. Create the tree on first use:
+`/assay` writes session state and lessons under `~/.claude/memory/`. Create the tree on first use:
 
 ```bash
 mkdir -p ~/.claude/memory/{global,sessions,projects/personal/specs/active,projects/personal/specs/shipped}
@@ -92,7 +92,7 @@ The skills assume a `~/.claude/CLAUDE.md` exists with project detection rules + 
 
 ```bash
 # In Claude Code:
-/ship "test task — print hello"
+/assay "test task — print hello"
 ```
 
-If you hit a missing-plugin warning (e.g. `superpowers:brainstorming` not installed), `/ship` will note the degradation and continue. That's working as intended.
+If you hit a missing-plugin warning (e.g. `superpowers:brainstorming` not installed), `/assay` will note the degradation and continue. That's working as intended.

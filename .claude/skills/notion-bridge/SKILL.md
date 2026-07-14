@@ -1,6 +1,6 @@
 ---
 name: notion-bridge
-description: Routes human-facing artifacts to Notion via the Notion MCP and notion plugin. Determines what gets pushed to Notion (architecture decisions, ADRs, project status, retrospectives, board materials, weekly summaries, customer-facing docs) and what stays local (lessons, session transcripts, operator-model, curator reports, ephemeral plans, code review notes, skill files). Use when a task produces a human-facing artifact, when Brandon says "push this to Notion" or "save this for the team", or at the end of a /ship run that generated documentation worth sharing. Always asks Brandon to confirm target page or database with one-line preview before pushing. Never pushes secrets, API keys, internal financial numbers, or PII without explicit per-push approval. Coordinates with notion plugin for slash commands and Notion MCP for raw operations.
+description: Routes human-facing artifacts to Notion via the Notion MCP and notion plugin. Determines what gets pushed to Notion (architecture decisions, ADRs, project status, retrospectives, board materials, weekly summaries, customer-facing docs) and what stays local (lessons, session transcripts, operator-model, curator reports, ephemeral plans, code review notes, skill files). Use when a task produces a human-facing artifact, when Brandon says "push this to Notion" or "save this for the team", or at the end of a /assay run that generated documentation worth sharing. Always asks Brandon to confirm target page or database with one-line preview before pushing. Never pushes secrets, API keys, internal financial numbers, or PII without explicit per-push approval. Coordinates with notion plugin for slash commands and Notion MCP for raw operations.
 ---
 
 # Notion Bridge Skill
@@ -89,7 +89,7 @@ The "push anyway" path requires Brandon to type the exact override phrase. Do no
 
 ## Pull from Notion
 
-Symmetrical: notion-bridge also handles fetching from Notion when /ship needs context from a doc.
+Symmetrical: notion-bridge also handles fetching from Notion when /assay needs context from a doc.
 
 Use cases:
 - Brandon references a Notion doc by URL or title ("the ADR on auth").
@@ -100,7 +100,7 @@ Pull via Notion MCP. Return the content. Do not write to local memory unless Bra
 
 ## Integration with Other Skills
 
-- **/ship** — at end of pipeline, notion-bridge inspects generated artifacts. If any match push categories, prompts Brandon to push.
+- **/assay** — at end of pipeline, notion-bridge inspects generated artifacts. If any match push categories, prompts Brandon to push.
 - **project-memory** — never pushes raw lessons to Notion. If Brandon asks for a "project summary for sharing", the bridge generates a summary FROM lessons but routes that summary (not the lessons themselves).
 - **skill-curator** — curator reports stay local. Never pushed.
 - **operator-model** — never pushed to Notion. Sensitive personal data.

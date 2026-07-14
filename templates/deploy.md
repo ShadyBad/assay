@@ -1,6 +1,6 @@
 # Deploy target — `.claude/deploy.md`
 
-Per-project deploy contract read by `/ship` **Step 11.5: DEPLOY → CANARY**.
+Per-project deploy contract read by `/assay` **Step 11.5: DEPLOY → CANARY**.
 Copy this file to a project's `.claude/deploy.md` and fill the block below.
 No `.claude/deploy.md` in a project → Step 11.5 finds no target and skips (deploy stays inert).
 

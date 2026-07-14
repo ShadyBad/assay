@@ -1,6 +1,6 @@
 ---
 name: mcp-router
-description: Task-aware MCP loading. Classifies the current task into categories (coding, research, design, GTM, ops, finance, content, communication, debugging) and loads only the MCPs relevant to that category. Never loads all MCPs at once even though caveman compression mitigates per-MCP token cost. Use at the start of every task before invoking any MCP-backed tool, when Brandon explicitly names a service (override and load that MCP regardless of category), or when /ship begins its execute phase. Loads MCPs in priority order within each category. Returns the list of loaded MCPs so other skills know what is available. Gracefully handles missing or disconnected MCPs by routing around them and logging. Coordinates with caveman plugin for tool-description compression on loaded MCPs.
+description: Task-aware MCP loading. Classifies the current task into categories (coding, research, design, GTM, ops, finance, content, communication, debugging) and loads only the MCPs relevant to that category. Never loads all MCPs at once even though caveman compression mitigates per-MCP token cost. Use at the start of every task before invoking any MCP-backed tool, when Brandon explicitly names a service (override and load that MCP regardless of category), or when /assay begins its execute phase. Loads MCPs in priority order within each category. Returns the list of loaded MCPs so other skills know what is available. Gracefully handles missing or disconnected MCPs by routing around them and logging. Coordinates with caveman plugin for tool-description compression on loaded MCPs.
 ---
 
 # MCP Router Skill
@@ -39,7 +39,7 @@ MCPs:
 
 ### design
 
-Loaded for: UI/UX work, design system updates, mockups.
+Loaded for: UI/UX work, design system updates, mockups, marketing/landing pages, web motion, WebGL/3D.
 
 MCPs:
 1. `Excalidraw` — quick diagrams.
@@ -118,11 +118,11 @@ These are not "loaded" in the heavy sense; they are available because their cost
 
 ## Classification Algorithm
 
-1. Read the task description (from /ship invocation or current message).
+1. Read the task description (from /assay invocation or current message).
 2. Look for explicit category signals:
    - Code-related verbs: write, refactor, debug, test, deploy → coding or ops.
    - Research verbs: research, find papers, look up, what is the market → research.
-   - Design verbs: design, mock up, style, layout → design.
+   - Design verbs: design, mock up, style, layout, animate, scroll animation, landing page, pricing page, hero, WebGL, three.js, GSAP, motion → design.
    - Marketing verbs: campaign, SEO, copy, conversion → GTM.
    - Money verbs: model, forecast, P&L, ROI, valuation → finance.
 3. Look for explicit service mentions (override category mapping). If Brandon mentions a specific service by name, load that MCP regardless of category.
@@ -149,12 +149,12 @@ MCP-ROUTER: Loaded for category "<category>":
 
 ## Override Flags
 
-When /ship is invoked with explicit MCP control:
+When /assay is invoked with explicit MCP control:
 
-- `/ship --mcps=Supabase,PostHog "<task>"` — load only these.
-- `/ship --mcps=+Linear "<task>"` — add Linear to category defaults.
-- `/ship --mcps=-Sentry "<task>"` — exclude Sentry from category defaults.
-- `/ship --no-mcps "<task>"` — load no MCPs (rare; use for pure local work).
+- `/assay --mcps=Supabase,PostHog "<task>"` — load only these.
+- `/assay --mcps=+Linear "<task>"` — add Linear to category defaults.
+- `/assay --mcps=-Sentry "<task>"` — exclude Sentry from category defaults.
+- `/assay --no-mcps "<task>"` — load no MCPs (rare; use for pure local work).
 
 ## Caveman Integration
 
@@ -166,7 +166,7 @@ If caveman is disabled, warn Brandon: each MCP loaded will cost more tokens.
 
 ## Integration with Other Skills
 
-- **/ship** — invokes mcp-router during the "context load" phase, before subagent dispatch.
+- **/assay** — invokes mcp-router during the "context load" phase, before subagent dispatch.
 - **judge-panel** — for HIGH/CRITICAL changes, mcp-router may load Sentry/PostHog so judges can reference production behavior.
 - **session-recall** — if a recall result mentions a service, that service's MCP is loaded by the router on follow-up.
 

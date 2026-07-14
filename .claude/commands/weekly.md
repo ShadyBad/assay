@@ -1,3 +1,9 @@
+---
+name: weekly
+description: Sunday review — the slow loop. Detects cross-project patterns across the week's lessons, runs the full skill-curator audit, and offers per-section Notion push for team-relevant retros. Reads everything /eod wrote across the week and writes one consolidated retro file. Never auto-pushes. Use once a week (default Sunday), when Brandon says "/weekly" or "run the weekly review".
+argument-hint: "[--range=<7d|14d|30d>] [--project=<ns>] [--no-curator] [--no-notion] [--dry-run]"
+---
+
 # /weekly — Sunday Review
 
 The slow loop. Runs once a week (default Sunday). Detects cross-project patterns across the week's lessons, runs the full skill-curator audit, and offers per-section Notion push for team-relevant retros.
@@ -173,5 +179,5 @@ If ALL of Steps 2-4 produce no output: still write the retro file with whatever 
 ## When to Run
 
 - **Default cadence**: Sunday evening.
-- **Off-cycle triggers**: after a `/ship --force` was used (force-bypass review), after a project namespace ships its first MVP, before any external commitment (investor update, customer demo, team retro).
+- **Off-cycle triggers**: after a `/assay --force` was used (force-bypass review), after a project namespace ships its first MVP, before any external commitment (investor update, customer demo, team retro).
 - **Skip if**: window has zero activity AND last weekly was within 14 days. Surface "Nothing changed since <date>. Skip? (yes/no)".

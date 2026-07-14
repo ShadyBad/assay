@@ -1,21 +1,21 @@
 ---
 name: postmortem
-description: Captures failure context when /ship aborts, blocks, or hits an uncovered gate, and routes the resulting lessons to project-memory, operator-model, and optionally Notion. Closes the asymmetry where /ship Step 12 only learns from successful commits. Use when /ship aborts at any step (auto-trigger), when Brandon invokes /postmortem manually after a failed attempt, when a judge-panel returns block, when done-gate halts the pipeline, or when Brandon explicitly says "we should learn from that miss". Append-only. Always asks Brandon to confirm each route (lessons, operator-model, Notion) before writing. Never logs to operator-model without diff preview. Never pushes to Notion without explicit per-push approval. Recovers cleanly from partial state.
+description: Captures failure context when /assay aborts, blocks, or hits an uncovered gate, and routes the resulting lessons to project-memory, operator-model, and optionally Notion. Closes the asymmetry where /assay Step 12 only learns from successful commits. Use when /assay aborts at any step (auto-trigger), when Brandon invokes /postmortem manually after a failed attempt, when a judge-panel returns block, when done-gate halts the pipeline, or when Brandon explicitly says "we should learn from that miss". Append-only. Always asks Brandon to confirm each route (lessons, operator-model, Notion) before writing. Never logs to operator-model without diff preview. Never pushes to Notion without explicit per-push approval. Recovers cleanly from partial state.
 ---
 
 # Postmortem Skill
 
-Captures failure context and routes lessons. The asymmetric counterpart to project-memory's success-path capture. /ship learns from green commits at Step 12; this skill learns from red exits at any step.
+Captures failure context and routes lessons. The asymmetric counterpart to project-memory's success-path capture. /assay learns from green commits at Step 12; this skill learns from red exits at any step.
 
 ## Why This Exists
 
-/ship's LEARN step (Step 12) writes lessons only after a successful commit. Every aborted run, blocked judge verdict, halted gate, or manual interrupt produces zero learning. Failures carry higher signal than successes — "we blocked because the test environment can't reach the staging DB" outweighs "we added a helper with tests" by orders of magnitude. This skill closes that loop.
+/assay's LEARN step (Step 12) writes lessons only after a successful commit. Every aborted run, blocked judge verdict, halted gate, or manual interrupt produces zero learning. Failures carry higher signal than successes — "we blocked because the test environment can't reach the staging DB" outweighs "we added a helper with tests" by orders of magnitude. This skill closes that loop.
 
 ## Invocation Modes
 
 ### `auto` mode
 
-Called by /ship when the pipeline exits non-successfully:
+Called by /assay when the pipeline exits non-successfully:
 
 - Step 3 PLAN: Brandon answered `abort`.
 - Step 7 EXECUTE: subagent timeout, Brandon chose `abort`.
@@ -25,7 +25,7 @@ Called by /ship when the pipeline exits non-successfully:
 - Step 11 COMMIT: pre-commit hook rejection with no auto-fix path.
 - Any step: Brandon types "stop" or "abort".
 
-Inputs from /ship:
+Inputs from /assay:
 - `failure_step` — which pipeline step halted.
 - `attempted_action` — one-line summary of what was being tried.
 - `gate_verdict` — judge or done-gate output if applicable.
@@ -35,12 +35,12 @@ Inputs from /ship:
 
 Called by user via `/postmortem`. Used when:
 - Brandon wants to retroactively log a failure from earlier in the session.
-- A failure happened outside /ship (a non-pipeline experiment, a broken build, a deployment that rolled back).
+- A failure happened outside /assay (a non-pipeline experiment, a broken build, a deployment that rolled back).
 - Brandon wants to log a near-miss that did not abort but should have.
 
 In manual mode, inputs are collected from Brandon interactively:
 1. What were you trying to do? (one sentence)
-2. Which step or stage failed? (free text — does not have to be a /ship step)
+2. Which step or stage failed? (free text — does not have to be a /assay step)
 3. What did the gate or system say? (paste error, judge output, or "n/a")
 4. Why did it fail, in your read? (1-2 sentences — root cause)
 5. What should change going forward? (multi-select: operator-model, project lesson, skill description, infra todo, no change)
@@ -119,12 +119,12 @@ Hand off to `notion-bridge push` with target category `Retrospectives` (default)
 
 ## Auto Mode Flow
 
-When /ship hands off to postmortem skill on abort:
+When /assay hands off to postmortem skill on abort:
 
-1. Receive context from /ship (`failure_step`, `attempted_action`, `gate_verdict`, `partial_changeset`).
+1. Receive context from /assay (`failure_step`, `attempted_action`, `gate_verdict`, `partial_changeset`).
 2. Surface to Brandon:
    ```
-   POSTMORTEM — /ship halted at <failure_step>.
+   POSTMORTEM — /assay halted at <failure_step>.
    Attempted: <attempted_action>
    Verdict: <gate_verdict>
 
@@ -148,9 +148,9 @@ When Brandon types `/postmortem`:
 5. Brandon confirms per route.
 6. Write approved routes. Return summary.
 
-## Interaction with /ship Pipeline
+## Interaction with /assay Pipeline
 
-The /ship orchestrator invokes this skill at the following exit points. Each invocation is wrapped in a try/skip so that postmortem failure never blocks /ship's own state-save-and-exit.
+The /assay orchestrator invokes this skill at the following exit points. Each invocation is wrapped in a try/skip so that postmortem failure never blocks /assay's own state-save-and-exit.
 
 | Step | Trigger | Pass-through context |
 |------|---------|---------------------|
@@ -168,7 +168,7 @@ The skill's auto-mode flow handles all of these uniformly. The pass-through cont
 
 - Postmortem records do not get their own file. They live as entries inside the project's `lessons.md` (Route 1), inside `operator-model.md` (Route 2 if approved), and optionally in Notion (Route 4 if approved).
 - Skipped postmortems append a one-liner to `$HOME/.claude/memory/global/postmortem-skipped-log.md` with format `<ISO-timestamp> | <failure_step> | <reason if Brandon gave one>`.
-- The session state file written by /ship at interrupt time already contains the failure context. Postmortem skill reads from that file when invoked in auto mode, so Brandon can resume `/ship resume` and the postmortem can still fire after the fact if he chooses.
+- The session state file written by /assay at interrupt time already contains the failure context. Postmortem skill reads from that file when invoked in auto mode, so Brandon can resume `/assay resume` and the postmortem can still fire after the fact if he chooses.
 
 ## Skipped Postmortem Tracking
 
@@ -178,7 +178,7 @@ If Brandon types `skip` on 3+ postmortems within a 14-day window, skill-curator 
 
 Modes:
 
-- `auto` — called by /ship. Inputs: failure_step, attempted_action, gate_verdict, partial_changeset, project_name (optional, defaults to detected).
+- `auto` — called by /assay. Inputs: failure_step, attempted_action, gate_verdict, partial_changeset, project_name (optional, defaults to detected).
 - `manual` — called by /postmortem command. Inputs: none (interactive).
 - `query` — returns past postmortems. Inputs: query string (e.g., tag filter, date range, failure step). Useful for `/postmortem review last week` or skill-curator audits.
 
@@ -189,7 +189,7 @@ Modes:
 - **notion-bridge** — postmortem hands off team-relevant findings. notion-bridge's sanitize check and explicit-yes rule apply.
 - **session-recall** — past postmortems are searchable via session-recall's standard query interface (they live in lessons.md).
 - **skill-curator** — reads postmortem-skipped-log for tuning signals. Picks up skill-description suggestions from Route 3.
-- **/ship** — auto-invokes this skill at the 7 failure-path exit points listed above.
+- **/assay** — auto-invokes this skill at the 7 failure-path exit points listed above.
 
 ## Plugin Compatibility
 
@@ -207,7 +207,7 @@ If notion plugin or MCP is missing, Route 4 degrades to "save to a local file at
 - NEVER write to operator-model.md without showing diff preview to Brandon.
 - NEVER push to Notion without explicit per-push "yes".
 - NEVER edit skill files directly. Always go through skill-curator's review pass.
-- NEVER block /ship's own state-save-and-exit. Postmortem is opportunistic — if it errors, log and exit clean.
+- NEVER block /assay's own state-save-and-exit. Postmortem is opportunistic — if it errors, log and exit clean.
 - NEVER write a lesson longer than project-memory's 3-sentence cap.
 - ALWAYS tag entries with `postmortem` AND `failure` (both, for findability).
 - ALWAYS allow `skip`. Friction kills the loop.

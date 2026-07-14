@@ -1,6 +1,6 @@
 ---
 name: postmortem
-description: Capture failure context after a /ship abort or any non-success exit, and route lessons to project-memory, operator-model, and optionally Notion. Closes the asymmetry where /ship Step 12 only learns from green commits — failures, blocks, and aborts produce zero learning by default. Invoke manually after a failed attempt, or rely on /ship's auto-trigger on pipeline halt.
+description: Capture failure context after a /assay abort or any non-success exit, and route lessons to project-memory, operator-model, and optionally Notion. Closes the asymmetry where /assay Step 12 only learns from green commits — failures, blocks, and aborts produce zero learning by default. Invoke manually after a failed attempt, or rely on /assay's auto-trigger on pipeline halt.
 argument-hint: "[freeform note about what went wrong]" [--auto] [--from-session=<session-id>] [--skip]
 ---
 
@@ -10,17 +10,17 @@ Thin wrapper around the `postmortem` skill. The skill holds the policy; this com
 
 ## When to Invoke
 
-- **Manual review after a failure** — a /ship aborted, a deploy rolled back, a test environment broke, a judge blocked you and you exited. Type `/postmortem` to capture the lesson before the context fades.
+- **Manual review after a failure** — a /assay aborted, a deploy rolled back, a test environment broke, a judge blocked you and you exited. Type `/postmortem` to capture the lesson before the context fades.
 - **Catch-up logging** — you fixed the failure yesterday but never wrote it down. `/postmortem` with a freeform note prompts the structured capture.
 - **Near-miss** — nothing aborted, but something almost did. Worth logging.
 
-For automatic invocation from /ship's halt paths, the orchestrator calls the skill directly in `auto` mode. This command is for the human-initiated path.
+For automatic invocation from /assay's halt paths, the orchestrator calls the skill directly in `auto` mode. This command is for the human-initiated path.
 
 ## Flags
 
 | Flag | Effect |
 |------|--------|
-| `--auto` | Run in /ship-driven mode. Skips the 5-question interview, pulls context from the most recent halted session-state file under `$HOME/.claude/memory/sessions/`. |
+| `--auto` | Run in /assay-driven mode. Skips the 5-question interview, pulls context from the most recent halted session-state file under `$HOME/.claude/memory/sessions/`. |
 | `--from-session=<session-id>` | Use a specific older session as the failure source. Useful for retroactive postmortems on earlier work. |
 | `--skip` | Record a deliberate skip into `$HOME/.claude/memory/global/postmortem-skipped-log.md` with a one-line reason. Useful when the failure was already documented elsewhere or has no actionable lesson. |
 
@@ -44,7 +44,7 @@ The skill's hard constraints apply: never push to Notion without explicit "yes",
 ```
 /postmortem                                # Manual interview, current project context.
 /postmortem "test env can't reach staging DB"  # Seed root cause, continue interactive.
-/postmortem --auto                         # Run after /ship halt, pulls from session state.
+/postmortem --auto                         # Run after /assay halt, pulls from session state.
 /postmortem --from-session=2026-05-15-abc  # Retroactive postmortem on older session.
 /postmortem --skip                         # Record deliberate skip with reason.
 ```
@@ -55,7 +55,7 @@ The skill's hard constraints apply: never push to Notion without explicit "yes",
 - `project-memory` skill — Route 1 destination (always).
 - `operator-model` skill — Route 2 destination (with diff preview).
 - `notion-bridge` skill — Route 4 destination (with sanitize + explicit yes).
-- `/ship` — auto-invokes the skill at halt paths so manual /postmortem is rarely needed mid-pipeline.
+- `/assay` — auto-invokes the skill at halt paths so manual /postmortem is rarely needed mid-pipeline.
 
 ## Hard Constraints
 

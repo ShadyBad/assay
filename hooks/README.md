@@ -21,7 +21,7 @@ All three:
 
 ## Install
 
-If you're using the `claude-ship` plugin install paths from the root README, the scripts already live at `~/.claude/hooks/<name>.sh` as symlinks (or copies) into the repo. To wire them into Claude Code, append the two settings.json entries below.
+If you're using the `assay` plugin install paths from the root README, the scripts already live at `~/.claude/hooks/<name>.sh` as symlinks (or copies) into the repo. To wire them into Claude Code, append the two settings.json entries below.
 
 ### Add to `~/.claude/settings.json`
 
@@ -73,7 +73,7 @@ Both scripts read from `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/_proposed/`, 
 Restore the saved settings.json backup made when you installed:
 
 ```bash
-cp ~/.claude/settings.json.pre-claude-ship-hooks-<timestamp> ~/.claude/settings.json
+cp ~/.claude/settings.json.pre-assay-hooks-<timestamp> ~/.claude/settings.json
 rm ~/.claude/hooks/{proposal-count,proposal-watcher,composed-statusline}.sh
 ```
 

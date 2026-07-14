@@ -1,3 +1,9 @@
+---
+name: eod
+description: End-of-day wrap. Captures what shipped, what slipped, what was learned, and tomorrow's first action. Writes through the memory skills (project-memory, operator-model, session-recall) and gates every write on explicit Brandon approval — never silently mutates state. Use at the end of a work day, when Brandon says "wrap up the day" or "/eod", or to close out a /assay-heavy session with captured lessons.
+argument-hint: "[--quick] [--project=<ns>] [--note=<freeform>] [--no-operator-update]"
+---
+
 # /eod — End-of-Day Wrap
 
 Closes the day. Captures what shipped, what slipped, what got learned, and the first action for tomorrow. Writes through the existing memory skills — never bypasses them.
@@ -22,7 +28,7 @@ Gather what happened today without asking Brandon yet:
 
 - Read `$HOME/.claude/memory/sessions/` for any session dirs dated today.
 - For each, read `state.json` and any `judge-output.md` to surface successes, blocks, aborts.
-- Scan today's `/ship` runs by date prefix. Count: shipped, blocked, aborted, force-bypassed.
+- Scan today's `/assay` runs by date prefix. Count: shipped, blocked, aborted, force-bypassed.
 - Read `$HOME/.claude/memory/global/force-bypass-log.md` — flag any entry from today.
 
 If nothing happened today (no session dirs, no commits): ask Brandon directly "What did you work on today?" Skip Step 1 outputs.
@@ -32,7 +38,7 @@ If nothing happened today (no session dirs, no commits): ask Brandon directly "W
 A "slip" is something planned that did not ship. Detect by:
 
 - Yesterday's `tomorrow-first-action.md` (from `memory/sessions/<yesterday>-<id>/`) — was that action completed today? Check git log + session state.
-- Any `/ship resume` state file under `memory/sessions/` from earlier this week still in non-terminal state.
+- Any `/assay resume` state file under `memory/sessions/` from earlier this week still in non-terminal state.
 - Any TODO Brandon flagged in a prior session marked `#followup` that did not move.
 
 Surface up to 3 slips with one-line reason each.

@@ -1,3 +1,9 @@
+---
+name: morning
+description: Daily kickoff. Reads memory, calendar, lessons, and open proposals to surface what matters today as a 5-bullet brief plus a single "first action." Read-only — never writes lessons, pushes to Notion, or mutates state (/eod does that). Use at the start of a work day, when Brandon says "good morning", "/morning", or "what's on today".
+argument-hint: "[--project=<ns>] [--quick] [--no-cal]"
+---
+
 # /morning — Daily Kickoff
 
 Surfaces what matters today. Reads memory + calendar + lessons + open proposals. Outputs a 5-bullet brief and a single "first action."
@@ -112,13 +118,13 @@ Never recommend a pattern from the operator-model "Things Brandon hates" list.
 | Proposed | Dir empty | Skip section. Continue. |
 | Session | None recent | "(clean slate)". |
 
-If ALL sources fail: surface to Brandon. Offer to run `/ship "<task>"` directly.
+If ALL sources fail: surface to Brandon. Offer to run `/assay "<task>"` directly.
 
 ## Hard Constraints
 
 - READ-ONLY. Never write to lessons, operator-model, sessions, or _proposed/.
 - NEVER push to Notion from /morning. That is /weekly's job.
-- NEVER auto-invoke /ship. Just surface the recommendation.
+- NEVER auto-invoke /assay. Just surface the recommendation.
 - NEVER suggest more than ONE highest-leverage action. The whole point is focus.
 
 ## Coordination

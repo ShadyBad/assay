@@ -195,6 +195,8 @@ Run the plan.
 
 Subagents return results. Orchestrator merges and resolves conflicts.
 
+**README creation hook.** If the task creates or overhauls a repo's GitHub README (new project homepage, rebrand, visual upgrade), invoke the `beautify-github-readme` skill when available — README mode for whole-homepage work, asset-only mode for a hero/badge/diagram set. Degrade gracefully to plain Markdown if the skill is absent. This never blocks EXECUTE.
+
 If any subagent times out or errors:
 - Log the failure.
 - Surface to Brandon: "(a) retry that subagent, (b) take over inline, (c) abort and save state."
@@ -457,6 +459,7 @@ Enhanced by (in order of impact):
 - `hookify` — done-gate hook enforcement.
 - `pyright-lsp` — done-gate Check 6.
 - `caveman` — MCP description compression.
+- `beautify-github-readme` — README homepage + GitHub-safe SVG/GIF asset generation. Invoked in EXECUTE (Step 7) when a task creates or overhauls a repo README, and by plugin-packager Step 5.
 
 ## Quick Reference
 /assay "<task>"                          # Default. Auto risk, judges per tier, ask-before-push.

@@ -32,7 +32,7 @@ push:         <bool, default false — only push to GitHub on explicit yes>
 2. **Skeleton.** Create `<destination>/.claude-plugin/`, `<destination>/.claude/commands/`, `<destination>/.claude/skills/`, `<destination>/scripts/`.
 3. **Copy files.** Copy each command + skill directory into the destination preserving structure.
 4. **Manifest.** Write `<destination>/.claude-plugin/plugin.json` with name, description (synthesized from the primary command), version `0.1.0`, MIT license, author (from operator-model), keywords, and `commands` + `skills` paths.
-5. **Docs.** Write README.md (what + design + install + license), INSTALL.md (three install paths: plugin loader, direct drop, symlink), CONFIG.md (personalization guide, what NOT to rename), LICENSE (MIT), .gitignore.
+5. **Docs.** Write README.md (what + design + install + license), INSTALL.md (three install paths: plugin loader, direct drop, symlink), CONFIG.md (personalization guide, what NOT to rename), LICENSE (MIT), .gitignore. **README visual pass:** if the `beautify-github-readme` skill is available, invoke it in README mode on the generated README.md to give the repo homepage a cohesive theme-specific visual story (hero, section headers, badges, GitHub-safe SVG assets). Degrade gracefully — if the skill is absent, ship the plain-Markdown README unchanged. Never let the visual pass block packaging.
 6. **Personalize script.** Write `<destination>/scripts/personalize.sh` — BSD/GNU sed-compatible, takes `<name> <project-1> <project-2>`, backs up `.claude/` to `.backup-<timestamp>/`, then rewrites `Brandon` → `<name>` and project namespace strings → `<project-N>`. Never touches risk tier names, pipeline step numbers, skill YAML IDs, or the pinned-skills list.
 7. **Local swap (if `swap=true`).** Backup current `~/.claude/commands/<name>.md` and `~/.claude/skills/<name>/` for every scoped item to `~/.claude/backups/pre-<repo-name>-<timestamp>/`. Verify backup is bit-identical to repo copy via `diff -rq`. If diff is non-empty, halt — abort the swap. If empty, remove originals and replace with symlinks pointing into the destination repo.
 8. **Git + GitHub (if approved).** `git init`, initial commit using conventional-commit format, then `gh repo create <user>/<repo-name> --public --source=. --push` on explicit Brandon yes only.
@@ -50,6 +50,7 @@ push:         <bool, default false — only push to GitHub on explicit yes>
 
 ## Coordination
 
+- **beautify-github-readme** — README visual pass in Step 5. Invoke in README mode on the generated README.md when available; skip silently if not installed.
 - **commit-protocol** — use for the initial commit (engineer-in-the-loop flow).
 - **operator-model** — read for author name + GitHub username when writing plugin.json + LICENSE copyright.
 - **done-gate** — bypass tests/lint checks (markdown only); Check 8 (Brandon approval) still applies.

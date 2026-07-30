@@ -224,6 +224,8 @@ Output: changeset (modified files, new files, deletions) + artifact ref list.
 
 Invoke **judge-panel** with the changeset and risk tier from Step 4.
 
+**Diff snapshot (before).** Before dispatching any judge, record the changeset's stat line into `state.json.diff_before_review` as `{files, added, deleted}`. Step 14's run record diffs this against the post-review stat to compute whether the panel changed anything. Without the before-snapshot the edit-after-review metric is uncomputable, so take it even when the panel is expected to return `ship`.
+
 - TRIVIAL: skip judges (unless `--judges` flag forces).
 - LOW: 1-2 Tier 1 judges based on change type.
 - MEDIUM: 3-5 Tier 1 judges.
@@ -250,6 +252,8 @@ After 2 revision cycles, if judges still block: STOP and surface to Brandon. Do 
 ### Step 10: DONE GATE
 
 Invoke **done-gate** to run all 8 checks. Risk-tier adjustments from done-gate's SKILL.md apply.
+
+**Diff snapshot (after).** Record the final changeset stat into `state.json.diff_after_review` as `{files, added, deleted}` — this is the post-judge, post-revise shape of the diff. Also record which judge concerns were actually acted on: for each judge in `state.json.judges`, set `accepted` to the count of that judge's concerns that produced a change in the diff or an explicit "will fix" from Brandon. A concern Brandon waved off is raised-but-not-accepted, and that distinction is the entire point of the judge acceptance metric — do not inflate it.
 
 Honor skip flags: `--skip-tests`, `--skip-lint`, `--skip-types`, `--force`. Each logged.
 
@@ -338,6 +342,52 @@ Curator: <async pass running | N proposals | skipped (<7d)>
 Notion-eligible artifacts: <count> (local; push with /share <artifact>)
 Next: <suggested next action if applicable>
 
+### Step 14b: RUN RECORD (instrumentation — always, never blocking)
+
+The pipeline is otherwise unmeasured: it runs, the judges opine, and nothing on disk says whether any of it changed the shipped diff. After the report is delivered, append one run record so `/assay-stats` can answer that later.
+
+Assemble the record from `state.json` and pipe it to the recorder:
+
+```bash
+echo '<record-json>' | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/assay_record.py"
+```
+
+Record shape (only `project`, `risk_tier`, and `outcome` are required; omit what a run genuinely lacks rather than inventing it):
+
+```json
+{
+  "project": "margin-invest",
+  "task": "<one-line task summary>",
+  "risk_tier": "HIGH",
+  "invocation": "task | spec",
+  "flags": ["--dry-run"],
+  "outcome": "committed",
+  "stages_eligible": ["context-load", "plan", "judge-panel", "done-gate", "commit-protocol", "learn"],
+  "stages_fired": ["context-load", "plan", "judge-panel", "done-gate", "commit-protocol", "learn"],
+  "judges": [
+    {"judge": "security", "model": "opus", "verdict": "block", "concerns": 2, "accepted": 1}
+  ],
+  "diff_before_review": {"files": 3, "added": 88, "deleted": 12},
+  "diff_after_review":  {"files": 3, "added": 94, "deleted": 12},
+  "done_gate_blocked_on": [4],
+  "done_gate_skipped": ["tests"],
+  "brandon_verdict": "approved_first_pass | approved_after_rework | abandoned | unknown",
+  "rework_turns": 2,
+  "duration_s": 410,
+  "tokens_total": 184000,
+  "commit": "<short SHA>"
+}
+```
+
+Rules:
+
+- **Never block on it.** A recorder failure is logged in the report and ignored. Instrumentation that can halt a ship is worse than no instrumentation.
+- **Never fabricate a field.** `brandon_verdict` defaults to `unknown` and `unknown` runs are excluded from the approval metric — that is correct behavior, not a gap to paper over. A guessed value silently poisons every later reading.
+- **`accepted` ≤ `concerns` per judge**, counting only concerns that changed the diff or drew an explicit "will fix." The recorder rejects records that violate this.
+- **`stages_eligible` is the honest denominator** — list a stage only if this run's tier and flags meant it *should* have run. A stage skipped by design (judges at TRIVIAL, context-load at LOW) is not eligible and must not be listed.
+
+Read the numbers back with `/assay-stats`.
+
 ## State Management
 
 ### Saving State on Interrupt
@@ -387,7 +437,8 @@ On any non-success exit from Steps 3, 7, 8, 9, 10, 11, or 11.5 (Brandon abort, s
 2. Invoke the **postmortem** skill in `auto` mode with `failure_step`, `attempted_action`, `gate_verdict`, and `partial_changeset` pulled from the saved state.
 3. The skill surfaces two questions (root cause + change going forward) and routes Brandon's response to project-memory (always proposed), operator-model (when about Brandon/Claude behavior), a skill-description suggestion (when a skill is named), and notion-bridge (when team-relevant).
 4. If Brandon types `skip`, the skill logs to `$HOME/.claude/memory/global/postmortem-skipped-log.md` and exits clean. Skipping never blocks the state-save-and-exit.
-5. Postmortem skill failures are non-blocking — /assay's own halt path completes regardless.
+5. Emit a Step 14b run record with `outcome` set to `halted`, `aborted`, or `blocked` (whichever matches), plus `halt_step: <N>` and whatever stage/judge data the run reached. Halted runs carry the highest-signal instrumentation — a judge that blocks often but whose blocks are never accepted is exactly what the acceptance metric exists to find, and dropping failed runs from the log biases every rate upward.
+6. Postmortem skill failures are non-blocking — /assay's own halt path completes regardless.
 
 The skill is opportunistic — it runs after state is already safe on disk. Brandon can also invoke `/postmortem --from-session=<session-id>` later if he skipped at the time and wants to revisit.
 
@@ -413,6 +464,8 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 | 12 LEARN | Memory write fails | Retry once. Then log error. Do not block. |
 | 13 CURATE | Curator errors | Log. Skip. Do not block. |
 | 14 REPORT | Report write fails | Print report to stdout. Log error. Do not block. (Notion is on-demand `/share`, not in-pipeline — no failure mode here.) |
+| 14b RUN RECORD | Recorder rejects the record (schema error) | Print the recorder's message in the report. Do not retry with invented values. Do not block. |
+| 14b RUN RECORD | Recorder script missing or unreadable | Note "run record skipped" in the report. Do not block. |
 | State (Hand-off) | phase_summaries write fails | Retry once. On second failure, surface to Brandon — hand-off cannot proceed safely without persisted summaries. |
 | State (Hand-off) | lead_handoff.md missing on resume | Refuse resume with handoff_pending=true. Tell Brandon to inspect session dir or restart. |
 | State (Artifacts) | artifact write fails | Subagent retries write; on second failure, returns inline body with `inline_fallback: true` marker. Lead logs the fallback. |
@@ -429,6 +482,9 @@ The skill is opportunistic — it runs after state is already safe on disk. Bran
 - ALWAYS save state on interrupt. Brandon should be able to resume.
 - ALWAYS produce the final report, even on partial completion or failure.
 - ALWAYS log force-bypass usage. Every `--force` invocation is reviewed by skill-curator weekly.
+- ALWAYS emit a Step 14b run record, on success and on halt alike. Logging only successful runs biases every metric upward.
+- NEVER fabricate a run-record field to avoid an `unknown`. An honest gap is data; a guess is corruption.
+- NEVER let the run recorder block, delay, or alter a ship. It is instrumentation, not a gate.
 - NEVER run a `/assay <spec-id>` when the spec status is `draft`. Force Brandon through `/spec approve` first.
 - NEVER overwrite a spec's `shipped-at` or `shipped-commit` fields once set. Re-shipping with `--force` requires a new spec.
 - ALWAYS snapshot the spec into session state on entry. The snapshot is the contract for this ship run; later edits to the spec file do not affect a run in progress.
@@ -475,3 +531,4 @@ Enhanced by (in order of impact):
 /assay "<task>" --no-deploy              # Suppress deploy → canary even for a deploy-verb task.
 /assay "<task>" --dry-run                # Run through done-gate, show diff + verdict, halt before commit. Resume to commit.
 /assay resume                            # Resume last interrupted session (or finish a dry-run).
+/assay-stats                             # Read the run log back: stage fire rates, judge acceptance, approval.

@@ -50,7 +50,7 @@ Assay validates its own structure — the walkthrough below runs the real test +
 
 ## What you get
 
-**7 commands** (`/assay` has three forms)
+**8 commands** (`/assay` has three forms)
 
 | Command | What it does |
 |---------|--------------|
@@ -63,6 +63,7 @@ Assay validates its own structure — the walkthrough below runs the real test +
 | `/eod` | End-of-day wrap (gated writes). |
 | `/weekly` | Sunday review + cross-project pattern detection. |
 | `/cross-learn` | Promote patterns learned in one project namespace into system-level rules. |
+| `/assay-stats` | Is the pipeline earning its cost? Stage fire rates, per-judge acceptance, edit-after-review, first-pass approval — each with a kill threshold and an honest sample size. |
 
 **12 skills** (orchestrated by the commands above)
 

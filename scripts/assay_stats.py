@@ -253,8 +253,10 @@ def render(report: dict[str, Any], warnings: list[str]) -> str:
     add("-" * 62)
     ap = report["approval"]
     if ap["insufficient_data"]:
-        add(f"  first-pass approval: {ap['first_pass']}/{ap['n']} — insufficient data "
-            f"(need {MIN_N_APPROVAL})")
+        add(
+            f"  first-pass approval: {ap['first_pass']}/{ap['n']} — insufficient data "
+            f"(need {MIN_N_APPROVAL})"
+        )
     else:
         add(f"  first-pass approval: {ap['first_pass']}/{ap['n']}  {_pct(ap['rate'])}")
     add(f"  abandoned runs:      {ap['abandoned']}")

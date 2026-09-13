@@ -440,3 +440,31 @@ def test_binary_diff_never_reaches_the_handler_or_stderr(tmp_path):
     assert secret not in done.stderr, "staged credential was echoed to stderr"
     assert secret not in done.stdout
     assert "UnicodeDecodeError" not in done.stderr, "decode error escaped to the handler"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "SECRETS = {'a': 1}",
+        "API_KEYS = load()",
+        "self.tokens = []",
+        "user_passwords = fetch()",
+        "clientSecrets = get()",
+        "CREDENTIALS = {}",
+    ],
+)
+def test_plural_identifiers_are_detected(line):
+    """A plural is the same concept, and `API_KEYS = {...}` is ordinary code.
+
+    The trailing `s` failed the lookahead exactly the way `_` failed `\\b` --
+    the fourth shape in this class after snake_case, camelCase and uppercase
+    runs, and the one that let a docs commit through unnoticed.
+    """
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"missed plural: {line}"
+
+
+def test_plural_widening_does_not_swallow_unrelated_words():
+    for word in ("tokenizers", "secretarial", "passwordless"):
+        diff = f"diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1,2 @@\n x\n+{word}\n"
+        assert not detect_security_relevance(diff), f"over-matched on {word}"

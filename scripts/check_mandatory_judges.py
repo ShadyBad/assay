@@ -70,7 +70,11 @@ SECURITY_PATHS = (
 SECURITY_CONTENT = re.compile(
     r"(?<![A-Za-z0-9])(password|passwd|api[_-]?key|secret|token|authorization"
     r"|bearer|jwt|credential|private[_-]?key|access[_-]?key|signing[_-]?key)"
-    r"(?![A-Za-z0-9])",
+    # Optional trailing `s`: a plural is the same concept, and `SECRETS = {...}`
+    # or `API_KEYS = {...}` is ordinary code. Without it the lookahead rejects
+    # every plural -- the fourth shape in this class after snake_case,
+    # camelCase and uppercase runs.
+    r"s?(?![A-Za-z0-9])",
     re.IGNORECASE,
 )
 
@@ -84,7 +88,7 @@ SECURITY_CONTENT = re.compile(
 #: set keyed on the lowered match, so nothing double-reports.
 SECURITY_CAMEL = re.compile(
     r"(?<=[A-Za-z0-9])(Password|Passwd|ApiKey|Secret|Token|Authorization|Bearer"
-    r"|Jwt|Credential|PrivateKey|AccessKey|SigningKey)(?![a-z])"
+    r"|Jwt|Credential|PrivateKey|AccessKey|SigningKey)s?(?![a-z])"
 )
 
 #: Known and accepted: `token_limit`, `max_token_count`, and `session_token_ttl`

@@ -468,3 +468,151 @@ def test_plural_widening_does_not_swallow_unrelated_words():
     for word in ("tokenizers", "secretarial", "passwordless"):
         diff = f"diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1,2 @@\n x\n+{word}\n"
         assert not detect_security_relevance(diff), f"over-matched on {word}"
+
+
+# --- tokenizer: one boundary implementation, all identifier conventions ------
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "passwordHash = h",  # keyword as HEAD of camelCase
+        "tokenStore = s",
+        "secretValue = v",
+        "credentialProvider = p",
+        "apiKeyHeader = x",  # bigram split across humps
+        "secretsManager = m",  # head position AND plural
+        "new_api_key = 1",  # snake_case
+        "clientSecret = 1",  # camelCase tail
+        "AWSSecretKey = 1",  # uppercase run
+        "API_KEYS = {}",  # SCREAMING plural bigram
+        "private_keys = []",
+        'config["api-key"] = v',  # kebab
+        "creds = load()",  # abbreviation vocabulary
+        "pwd = getpass()",
+    ],
+)
+def test_tokenizer_catches_every_identifier_convention(line):
+    """Five shapes were found in sequence, all one root cause: boundary logic.
+
+    The tokenizer splits camelCase humps and non-alphanumerics in one place, so
+    a new convention needs no new lookaround and a new keyword is one set entry.
+    """
+    diff = f"diff --git a/c.ts b/c.ts\n--- a/c.ts\n+++ b/c.ts\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"missed: {line}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "max_tokens = 4096",
+        "prompt_tokens = 10",
+        "tokens_used = n",
+        "total_tokens = a + b",
+        "input_tokens, output_tokens = r",
+        "tokenizers = []",
+        "secretarial notes",
+        "passwordless login",
+        "tokenize(x)",
+    ],
+)
+def test_tokenizer_does_not_fire_on_counters_or_english(line):
+    """`max_tokens` is an LLM counter, not a credential.
+
+    Firing on these pushed the detect rate to the spec's ~50% kill threshold.
+    Centralising boundary logic is what made the exclusion expressible.
+    """
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert not detect_security_relevance(diff), f"false positive: {line}"
+
+
+def test_a_bare_key_token_is_not_a_keyword_on_its_own():
+    """`key` and `api` alone are far too common; only the pair fires."""
+    for line in ("key = d[i]", "api = Client()", "primary_key = id"):
+        diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+        assert not detect_security_relevance(diff), f"bare half fired: {line}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "apikey: abc",  # the literal HTTP header spelling
+        'APIKEY = os.environ["APIKEY"]',
+        'headers = {"apikey": v}',
+        "privatekey = f.read()",
+        "accesskey = 1",
+        "signingkey = 1",
+        "APIKEYS = {}",
+        "apikeys = []",
+    ],
+)
+def test_concatenated_spellings_survive_the_tokenizer(line):
+    """The regexes wrote the separator as `[_-]?`, so they matched the joined
+    form. A tokenizer emits ONE token for it and a bigram needs two, which
+    silently dropped `apikey` -- a coverage regression caught in review, not by
+    the suite, because no test covered the joined spelling."""
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"lost concatenated spelling: {line}"
+
+
+@pytest.mark.parametrize("line", ["apiKey2 = rotate()", "token2 = x", "secret1 = y"])
+def test_numbered_identifiers_are_detected(line):
+    """Numbered credential names are ordinary in key-rotation code, and a digit
+    terminated a token without splitting it. The regexes missed these too."""
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"missed numbered identifier: {line}"
+
+
+def test_digit_splitting_does_not_invent_false_positives():
+    for line in ("base64decode(x)", "s3_bucket = b", "sha256sum = h", "utf8_decode(v)"):
+        diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+        assert not detect_security_relevance(diff), f"digit split created a hit: {line}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["APIkey = os.environ['X']", "JWTs are verified here", "rotate the APIKEYs"],
+)
+def test_acronym_tail_spellings_are_detected(line):
+    """`_CAMEL_2` steals the last letter of an ALL-CAPS acronym.
+
+    `APIkey` tokenizes to ('ap', 'ikey') and `JWTs` to ('jw', 'ts'), so the
+    camel pass cannot see them. A second pass over the raw separator-split runs
+    keeps those spellings legible; it is additive, so it can never remove a hit.
+    Found by a differential harness over ~4,400 generated spellings, not by the
+    suite.
+    """
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"missed acronym-tail spelling: {line}"
+
+
+@pytest.mark.parametrize("line", ["max_tokens = 4096", "prompt_tokens = 1", "tokens_used = 2"])
+def test_counter_exclusion_applies_to_both_scanning_passes(line):
+    """Adding the raw pass reintroduced every `max_tokens` false positive,
+    because the exclusion lived only in the camel pass. Both consult
+    `_is_counter` now."""
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert not detect_security_relevance(diff), f"counter fired: {line}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "rotate the API_KEYs",
+        "API_KEYs = {}",
+        "PRIVATE_KEYs",
+        "ACCESS_KEYs = []",
+        "SIGNING_KEYs",
+        "X-API-KEYs: v",
+    ],
+)
+def test_separated_plural_bigrams_are_detected(line):
+    """`API_KEYs` camel-splits to ('ke','ys'), destroying (api, key) adjacency.
+
+    The raw pass added for acronym tails checked words but not bigrams, so this
+    whole shape was lost. A differential over 179,088 generated spellings found
+    672 losses and every one was this -- the round-2 test covered only the
+    JOINED plural (`APIKEYs`), so the separated form regressed silently.
+    """
+    diff = f"diff --git a/c.py b/c.py\n--- a/c.py\n+++ b/c.py\n@@ -1 +1,2 @@\n x\n+{line}\n"
+    assert detect_security_relevance(diff), f"missed separated plural bigram: {line}"

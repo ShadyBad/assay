@@ -63,39 +63,129 @@ SECURITY_PATHS = (
 
 #: Content appearing on ADDED lines. Removals do not trip the gate -- deleting a
 #: credential is the fix, not the defect.
-#: `_` is a word character, so `\b(api[_-]?key)\b` never matches `new_api_key`
-#: -- and a prefixed identifier is how this appears in real code. A judge
-#: reproduced a leaked key committed straight past the gate because of it. The
-#: lookarounds below treat `_` as a separator, which `\b` does not.
-SECURITY_CONTENT = re.compile(
-    r"(?<![A-Za-z0-9])(password|passwd|api[_-]?key|secret|token|authorization"
-    r"|bearer|jwt|credential|private[_-]?key|access[_-]?key|signing[_-]?key)"
-    # Optional trailing `s`: a plural is the same concept, and `SECRETS = {...}`
-    # or `API_KEYS = {...}` is ordinary code. Without it the lookahead rejects
-    # every plural -- the fourth shape in this class after snake_case,
-    # camelCase and uppercase runs.
-    r"s?(?![A-Za-z0-9])",
-    re.IGNORECASE,
+#: Keyword vocabulary. Flat, singular, lowercase. This part was never the
+#: problem -- five successive gaps (snake_case, camelCase, uppercase runs,
+#: plurals, and the keyword as the HEAD of a camelCase identifier) were all one
+#: root cause: hand-rolled token-boundary logic in a regex, where every
+#: identifier convention needed its own lookaround exception. The boundary
+#: handling is now done by a tokenizer instead, so adding a word here is the
+#: only edit a new keyword ever needs.
+SECURITY_WORDS = frozenset(
+    {
+        "password",
+        "passwd",
+        "pwd",
+        "passphrase",
+        "secret",
+        "secrets",
+        "token",
+        "credential",
+        "creds",
+        "authorization",
+        "bearer",
+        "jwt",
+        "privkey",
+        "otp",
+        "nonce",
+    }
 )
 
-#: camelCase is the same hole in the other direction: the lookbehind above
-#: requires a non-alphanumeric before the keyword, and `clientSecret` has `t`.
-#: A judge reproduced `clientSecret = 'sk_live_...'` and `authToken = 'ghp_...'`
-#: sailing through after the snake_case fix landed. Case-SENSITIVE by
-#: necessity -- an ignorecase pass here would match every occurrence of the
-#: bare word again and double-report. The lookbehind admits uppercase so
-#: `AWSSecretKey`, `JWTToken` and `DBPassword` are caught too; `hits` is a
-#: set keyed on the lowered match, so nothing double-reports.
-SECURITY_CAMEL = re.compile(
-    r"(?<=[A-Za-z0-9])(Password|Passwd|ApiKey|Secret|Token|Authorization|Bearer"
-    r"|Jwt|Credential|PrivateKey|AccessKey|SigningKey)s?(?![a-z])"
+#: Two-word concepts, checked as adjacent token pairs. `apiKeyHeader` tokenizes
+#: to (api, key, header), and neither half alone should fire.
+SECURITY_BIGRAMS = frozenset(
+    {
+        ("api", "key"),
+        ("private", "key"),
+        ("access", "key"),
+        ("signing", "key"),
+        ("secret", "key"),
+        ("auth", "token"),
+        ("refresh", "token"),
+    }
 )
 
-#: Known and accepted: `token_limit`, `max_token_count`, and `session_token_ttl`
-#: trip `content:token`. That is deliberate. Missing `auth_token` is a
-#: fail-open and a stray `token_limit` is an annoyance the trailer clears in one
-#: line, so the asymmetry is priced in favour of coverage. The trailer rate in
-#: `git log --grep` is what decides whether this judgement was right.
+#: Words that make an adjacent `token` a counter rather than a credential.
+#: `max_tokens`, `prompt_tokens`, `tokens_used` are everywhere in LLM code, and
+#: firing on them is what pushed the detect rate to the spec's kill threshold.
+#: Centralising boundary logic is what makes this exclusion expressible at all.
+TOKEN_QUANTIFIERS = frozenset(
+    {
+        "max",
+        "min",
+        "total",
+        "used",
+        "count",
+        "limit",
+        "num",
+        "n",
+        "input",
+        "output",
+        "prompt",
+        "completion",
+        "remaining",
+        "budget",
+        "per",
+        "avg",
+        "average",
+        "cost",
+        "usage",
+    }
+)
+
+#: Singular halves of every bigram, so `API_KEYS` depluralises to (api, key).
+_BIGRAM_PARTS = frozenset(part for pair in SECURITY_BIGRAMS for part in pair)
+
+#: Separator-less spellings of every bigram: `apikey`, `privatekey`, `accesskey`.
+#: The regexes this tokenizer replaced wrote the separator as `[_-]?`, so they
+#: matched the joined form; a tokenizer emits ONE token for it and a bigram
+#: needs two, which silently dropped the literal spelling of the HTTP header and
+#: of ordinary JSON/env config keys. Derived from the table rather than listed,
+#: so a new bigram cannot reintroduce the gap.
+_JOINED = frozenset(first + second for first, second in SECURITY_BIGRAMS)
+
+_CAMEL_1 = re.compile(r"([a-z0-9])([A-Z])")
+_CAMEL_2 = re.compile(r"([A-Z]+)([A-Z][a-z])")
+#: `apiKey2` / `token2` -- numbered identifiers are common in key-rotation code.
+_DIGIT_EDGE = re.compile(r"([A-Za-z])([0-9])")
+_SPLIT = re.compile(r"[^A-Za-z0-9]+")
+
+
+def _tokens(line: str) -> list[str]:
+    """Split a source line into lowercase word fragments.
+
+    Handles every identifier convention in one place: camelCase humps are
+    separated first (both `fooBar` and `AWSSecret` forms), then any run of
+    non-alphanumerics. That covers snake_case, kebab-case, dotted keys, YAML
+    keys, SCREAMING_SNAKE and possessives without a special case for each.
+    """
+    spaced = _CAMEL_2.sub(r"\1 \2", _CAMEL_1.sub(r"\1 \2", line))
+    spaced = _DIGIT_EDGE.sub(r"\1 \2", spaced)
+    return [frag.lower() for frag in _SPLIT.split(spaced) if frag]
+
+
+def _is_counter(seq: list[str], i: int) -> bool:
+    """True when `token` at index `i` is a usage counter rather than a secret.
+
+    Both scanning passes consult this. It first lived only in the camel pass,
+    and adding the raw pass silently reintroduced every `max_tokens` false
+    positive it existed to prevent -- caught by the suite, which is what those
+    tests are for.
+    """
+    neighbours = set(seq[max(0, i - 1) : i] + seq[i + 1 : i + 2])
+    return bool(neighbours & TOKEN_QUANTIFIERS)
+
+
+def _depluralize(token: str) -> str:
+    """Strip a trailing `s` only when the singular is a known keyword.
+
+    Guards against `tokenizers` or `secretarial` -- those are not plurals of
+    anything in the set, so they never become one by truncation.
+    """
+    known = SECURITY_WORDS | _BIGRAM_PARTS | _JOINED
+    if token not in known and token.endswith("s") and token[:-1] in known:
+        return token[:-1]
+    return token
+
 
 #: Credential shapes that carry no keyword at all. A secret pasted without a
 #: variable name -- a bare `ghp_...` in a config line, a PEM header, a JWT --
@@ -208,10 +298,50 @@ def detect_security_relevance(staged_diff: str) -> set[str]:
             if fragment in lowered:
                 hits.add(f"path:{fragment} ({path})")
     for line in _added_lines(staged_diff):
-        for match in SECURITY_CONTENT.findall(line):
-            hits.add(f"content:{match.lower()}")
-        for match in SECURITY_CAMEL.findall(line):
-            hits.add(f"content:{match.lower()}")
+        # Two passes over the same line. The camel-split tokens carry adjacency,
+        # which the bigram check needs; the raw separator-split runs carry the
+        # spellings camel-splitting mangles. `_CAMEL_2` steals the last letter
+        # of an ALL-CAPS acronym -- `APIkey` becomes ('ap', 'ikey'), `JWTs`
+        # becomes ('jw', 'ts') -- so the raw run is the only place those are
+        # still legible. Additive by construction: a second pass can add hits
+        # but never remove one.
+        runs = [_depluralize(r.lower()) for r in _SPLIT.split(line) if r]
+        for i, raw in enumerate(runs):
+            if raw not in SECURITY_WORDS and raw not in _JOINED:
+                continue
+            if raw == "token" and _is_counter(runs, i):
+                continue
+            hits.add(f"content:{raw}")
+
+        # Bigrams over the raw runs too, not just the camel tokens. `API_KEYs`
+        # camel-splits to ('ke', 'ys'), which destroys the (api, key)
+        # adjacency, and a word-only raw pass cannot see a two-word concept.
+        for first, second in zip(runs, runs[1:], strict=False):
+            if (first, second) in SECURITY_BIGRAMS:
+                hits.add(f"content:{first}-{second}")
+
+        tokens = [_depluralize(tok) for tok in _tokens(line)]
+        for i, tok in enumerate(tokens):
+            if tok in _JOINED:
+                hits.add(f"content:{tok}")
+                continue
+            if tok not in SECURITY_WORDS:
+                continue
+            if tok == "token":
+                if _is_counter(tokens, i):
+                    # Known and accepted: this skips a real credential named
+                    # `prompt_token` or `max_token`, and also the wider shapes
+                    # `session_token_limit`, `token_budget`, `api_token_usage`
+                    # and `access_tokens_used`, which the regexes did catch. The
+                    # common shapes survive -- `auth_token`/`refresh_token` via
+                    # bigram, and `access_token`/`id_token`/`session_token`
+                    # because their neighbours are not quantifiers. An exclusion
+                    # list inside a fail-closed gate has to state its own hole.
+                    continue
+            hits.add(f"content:{tok}")
+        for first, second in zip(tokens, tokens[1:], strict=False):
+            if (first, second) in SECURITY_BIGRAMS:
+                hits.add(f"content:{first}-{second}")
         for match in SECURITY_SHAPES.findall(line):
             hits.add(f"shape:{_shape_name(match)}")
         for match in SECURITY_SEMANTICS.findall(line):
